@@ -1,4 +1,159 @@
 <!doctype html>
-<html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>BlindSpot</title></head>
-<body class="bg-ink"><div id="root"></div><script type="module" src="/src/main.jsx"></script></body></html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BlindSpot</title>
+<style>
+:root{--ink:#090b0e;--panel:#10141a;--edge:#222b35;--mute:#8794a3;--txt:#d7dde3;--sig:#ffc800;color-scheme:dark}
+*{box-sizing:border-box}body{margin:0;background:var(--ink);color:var(--txt);font:15px/1.45 ui-sans-serif,"Segoe UI",system-ui,sans-serif}
+header{display:flex;gap:12px;align-items:center;padding:14px 22px;border-bottom:1px solid var(--edge);flex-wrap:wrap}
+header i{width:12px;height:12px;background:var(--sig)}h1{font-size:20px;margin:0}header span,.mute{color:var(--mute);font-size:13px}
+main{max-width:1100px;margin:0 auto;padding:22px;display:grid;gap:18px}.panel{background:var(--panel);border:1px solid var(--edge);padding:14px}
+button,select,input{font:inherit;color:inherit}button{cursor:pointer}
+.btn{background:var(--sig);color:#000;border:0;padding:8px 16px;font-weight:600}.btn:disabled{opacity:.4;cursor:default}
+.ghost{background:none;border:1px solid var(--edge);padding:4px 9px;color:var(--mute);font-size:13px}.ghost:hover{border-color:var(--sig);color:#fff}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.bar{height:4px;background:var(--edge);margin-top:8px}.bar div{height:4px;background:var(--sig);width:0}
+.search{display:flex;border:1px solid var(--edge);background:var(--panel)}.search:focus-within{border-color:var(--sig)}
+.search input{flex:1;min-width:0;background:none;border:0;outline:0;padding:12px 14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--edge)}.card img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#000}
+.card div{padding:10px;display:grid;gap:4px;font-size:14px}.t{font-family:ui-monospace,Consolas,monospace;color:var(--sig)}
+.tag{border:1px solid var(--edge);padding:0 6px;font-size:12px;margin-right:4px}
+.note{border-left:3px solid var(--sig);background:var(--panel);padding:10px 12px;font-size:14px}.err{border-color:#ff7b7b}
+video{width:100%;max-height:60vh;background:#000;display:block}
+.tl{position:relative;height:26px;background:var(--ink);border:1px solid var(--edge);margin-top:8px}
+.tl button{position:absolute;top:0;height:100%;width:5px;border:0;background:var(--sig);padding:0}
+#tools:not(.hide){display:grid;gap:14px}.hide{display:none}:focus-visible{outline:2px solid var(--sig);outline-offset:2px}
+.stats{display:flex;gap:22px;flex-wrap:wrap}.stats b{display:block;font-size:20px;color:#fff}
+</style></head><body>
+<header><i></i><h1>BlindSpot</h1><span>Search recorded CCTV by what appears in it. Everything runs in your browser; your video is never uploaded.</span></header>
+<main>
+<section class="panel">
+  <div class="mute" id="model">Model: loading…</div>
+  <div class="row hide" id="modelpick" style="margin-top:8px"><span class="mute">Model file not found next to this page. Choose <b>yolov8n.onnx</b>:</span><input id="mfile" type="file" accept=".onnx"></div>
+  <hr style="border:0;border-top:1px solid var(--edge);margin:12px 0">
+  <div class="row">
+    <input id="file" type="file" accept="video/*">
+    <label class="mute">Check every <select id="step"><option>1</option><option selected>2</option><option>5</option></select> s</label>
+    <label class="mute">Min confidence <input id="conf" type="range" min="25" max="80" value="40"></label>
+    <button class="btn" id="go" disabled>Analyze video</button>
+  </div>
+  <div class="mute" id="info" style="margin-top:8px">Choose an MP4/MOV/WebM recording you have permission to use. Status: waiting for a file.</div>
+  <div class="bar"><div id="prog"></div></div>
+</section>
+<section id="tools" class="hide">
+  <div class="panel stats" id="stats"></div>
+  <form class="search" id="form"><input id="q" placeholder='Try "find people" or "show people near a vehicle between 20 and 60 seconds"' aria-label="Search"><button class="btn">Search</button></form>
+  <div class="row" id="samples"></div>
+  <div class="row mute"><label>Object <select id="objf"><option value="">Any</option></select></label><label>Min confidence <input id="minc" type="range" min="0" max="90" value="0"></label></div>
+  <div id="msg"></div><div class="grid" id="results"></div>
+</section>
+<section id="player" class="panel hide">
+  <div class="row mute"><span id="ptitle"></span><button class="ghost" id="close" style="margin-left:auto">Close</button></div>
+  <video id="vid" controls></video>
+  <div class="mute" style="margin-top:8px">All detected moments (click to jump):</div><div class="tl" id="tl"></div>
+</section>
+<p class="mute">Detections are candidates for human review. This tool finds objects (person, car, bus, truck, bag…) and shows when they appear. It does not detect falls, collisions or suspicious behaviour. Use only footage you have permission to analyse.</p>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const fmt=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(Math.floor(s%60)).padStart(2,'0');
+const COCO=["person","bicycle","car","motorcycle","airplane","bus","train","truck","boat","traffic light","fire hydrant","stop sign","parking meter","bench","bird","cat","dog","horse","sheep","cow","elephant","bear","zebra","giraffe","backpack","umbrella","handbag","tie","suitcase","frisbee","skis","snowboard","sports ball","kite","baseball bat","baseball glove","skateboard","surfboard","tennis racket","bottle","wine glass","cup","fork","knife","spoon","bowl","banana","apple","sandwich","orange","broccoli","carrot","hot dog","pizza","donut","cake","chair","couch","potted plant","bed","dining table","toilet","tv","laptop","mouse","remote","keyboard","cell phone","microwave","oven","toaster","sink","refrigerator","book","clock","vase","scissors","teddy bear","hair drier","toothbrush"];
+let session=null,url=null,events=[],dur=0,fname='';
+
+/* ---------- YOLO post-processing (pure functions) ---------- */
+function iou(a,b){const x1=Math.max(a[0],b[0]),y1=Math.max(a[1],b[1]),x2=Math.min(a[0]+a[2],b[0]+b[2]),y2=Math.min(a[1]+a[3],b[1]+b[3]);
+  const i=Math.max(0,x2-x1)*Math.max(0,y2-y1);return i/(a[2]*a[3]+b[2]*b[3]-i+1e-9)}
+function decode(out,dims,conf,s,px,py,W,H){const N=dims[2],C=dims[1]-4,boxes=[],scores=[],cls=[];
+  for(let i=0;i<N;i++){let best=0,bc=0;for(let c=0;c<C;c++){const v=out[(4+c)*N+i];if(v>best){best=v;bc=c}}
+    if(best<conf)continue;const cx=out[i],cy=out[N+i],w=out[2*N+i],h=out[3*N+i];
+    boxes.push([(cx-w/2-px)/s,(cy-h/2-py)/s,w/s,h/s]);scores.push(best);cls.push(bc)}
+  const idx=scores.map((_,i)=>i).sort((a,b)=>scores[b]-scores[a]),keep=[];
+  for(const i of idx){let ok=true;for(const j of keep)if(cls[i]===cls[j]&&iou(boxes[i],boxes[j])>.45){ok=false;break}if(ok)keep.push(i)}
+  return keep.map(i=>{const[x,y,w,h]=boxes[i];return{label:COCO[cls[i]],conf:scores[i],box:[Math.max(0,x),Math.max(0,y),Math.min(W,x+w),Math.min(H,y+h)]}})}
+
+/* ---------- model loading ---------- */
+ort.env.wasm.wasmPaths='https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/';ort.env.wasm.numThreads=1;
+async function loadModel(buf){try{session=await ort.InferenceSession.create(buf,{executionProviders:['wasm']});
+  $('model').textContent='Model: YOLOv8n loaded (runs in your browser).';$('modelpick').classList.add('hide');ready()}
+  catch(e){$('model').textContent='Model failed to load: '+e.message}}
+(async()=>{try{const r=await fetch('yolov8n.onnx');if(!r.ok)throw 0;await loadModel(await r.arrayBuffer())}
+  catch(e){$('model').textContent='Model: not loaded yet.';$('modelpick').classList.remove('hide')}})();
+$('mfile').onchange=async e=>{if(e.target.files[0])await loadModel(await e.target.files[0].arrayBuffer())};
+
+/* ---------- video ---------- */
+const v=document.createElement('video');v.muted=true;v.playsInline=true;v.preload='auto';
+function ready(){$('go').disabled=!(session&&dur)}
+$('file').onchange=e=>{const f=e.target.files[0];if(!f)return;if(url)URL.revokeObjectURL(url);url=URL.createObjectURL(f);fname=f.name;v.src=url;events=[];dur=0;ready();
+  $('info').textContent=`${f.name} · ${(f.size/1048576).toFixed(1)} MB · status: loading…`;
+  v.onloadedmetadata=()=>{dur=v.duration;$('info').textContent=`${f.name} · ${(f.size/1048576).toFixed(1)} MB · ${fmt(dur)} long · status: uploaded`+(session?'':' (load the model first)');ready()};
+  v.onerror=()=>{$('info').textContent='This browser can’t read that video. Try an H.264 MP4.'}};
+const seek=t=>new Promise(r=>{v.onseeked=()=>r();v.currentTime=Math.min(t,dur-.05)});
+
+$('go').onclick=async()=>{
+  const step=+$('step').value,conf=+$('conf').value/100;$('go').disabled=true;events=[];$('tools').classList.remove('hide');$('results').innerHTML='';
+  const vw=v.videoWidth,vh=v.videoHeight,s=Math.min(640/vw,640/vh),nw=Math.round(vw*s),nh=Math.round(vh*s),px=(640-nw)>>1,py=(640-nh)>>1;
+  const c=document.createElement('canvas');c.width=c.height=640;const x=c.getContext('2d',{willReadFrequently:true});
+  const tw=480,th=Math.round(480*vh/vw),tc=document.createElement('canvas');tc.width=tw;tc.height=th;const tx=tc.getContext('2d');
+  const n=Math.floor(dur/step);
+  try{for(let i=0;i<=n;i++){const t=i*step;await seek(t);
+    x.fillStyle='#727272';x.fillRect(0,0,640,640);x.drawImage(v,px,py,nw,nh);
+    const d=x.getImageData(0,0,640,640).data,f=new Float32Array(3*640*640),P=640*640;
+    for(let p=0;p<P;p++){f[p]=d[p*4]/255;f[P+p]=d[p*4+1]/255;f[2*P+p]=d[p*4+2]/255}
+    const res=await session.run({[session.inputNames[0]]:new ort.Tensor('float32',f,[1,3,640,640])});
+    const o=res[session.outputNames[0]],dets=decode(o.data,o.dims,conf,s,px,py,vw,vh);
+    if(dets.length){tx.drawImage(v,0,0,tw,th);const k=tw/vw;tx.lineWidth=2;tx.font='13px sans-serif';
+      for(const dt of dets){const[a,b,e2,f2]=dt.box;tx.strokeStyle='#ffc800';tx.strokeRect(a*k,b*k,(e2-a)*k,(f2-b)*k);tx.fillStyle='#ffc800';tx.fillText(`${dt.label} ${dt.conf.toFixed(2)}`,a*k+2,Math.max(12,b*k-4))}
+      const cnt={};dets.forEach(z=>cnt[z.label]=(cnt[z.label]||0)+1);
+      events.push({t,objects:Object.keys(cnt).sort(),conf:Math.max(...dets.map(z=>z.conf)),thumb:tc.toDataURL('image/jpeg',.75),
+        desc:'Detected: '+Object.entries(cnt).sort((a,b)=>b[1]-a[1]).map(([l,m])=>m+' '+l).join(', ')})}
+    $('prog').style.width=(i/n*100)+'%';$('info').textContent=`${fname} · status: processing ${i+1}/${n+1} frames`}
+    $('info').textContent=`${fname} · ${fmt(dur)} · status: completed (${n+1} frames checked, ${events.length} frames with detections)`;
+  }catch(e){$('info').textContent='status: failed — '+e.message}
+  ready();stats();search('')};
+
+function stats(){const cnt={};events.forEach(e=>e.objects.forEach(o=>cnt[o]=(cnt[o]||0)+1));
+  $('stats').innerHTML=`<div><b>${events.length}</b>indexed moments</div><div><b>${fmt(dur)}</b>video length</div>`+Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([o,m])=>`<div><b>${m}</b>${o}</div>`).join('');
+  $('objf').innerHTML='<option value="">Any</option>'+Object.keys(cnt).sort().map(o=>`<option>${o}</option>`).join('')}
+
+/* ---------- search (keyword + object + time; not semantic) ---------- */
+const GROUPS={person:["person","people","persons","man","men","woman","women","human","humans","pedestrian","pedestrians","someone"],vehicle:["vehicle","vehicles","traffic"],car:["car","cars"],bus:["bus","buses"],truck:["truck","trucks"],motorcycle:["motorcycle","motorcycles","motorbike","motorbikes"],bicycle:["bicycle","bicycles","bike","bikes","cyclist","cyclists"],bag:["bag","bags"],backpack:["backpack","backpacks"],handbag:["handbag","handbags"],suitcase:["suitcase","luggage"],dog:["dog","dogs"],cat:["cat","cats"],bench:["bench"],umbrella:["umbrella"],"cell phone":["phone","cellphone"],bottle:["bottle","bottles"],chair:["chair","chairs"],laptop:["laptop"]};
+const EXPAND={vehicle:["car","bus","truck","motorcycle","bicycle"],bag:["backpack","handbag","suitcase"]};
+const UNSUP=["fall","falling","fell","collision","collide","crash","accident","suspicious","fight","unattended","abandoned","running","theft","steal","weapon","entering","entered"];
+function parse(q){const s=q.toLowerCase(),r={groups:[],all:false,from:null,to:null,unsup:[]};
+  for(const[k,ws]of Object.entries(GROUPS))if(ws.some(w=>new RegExp('\\b'+w+'\\b').test(s)))r.groups.push(EXPAND[k]||[k]);
+  r.all=/\b(near|with|and|next to|beside)\b/.test(s)&&r.groups.length>1;
+  let m=s.match(/between\s+(\d+(?:\.\d+)?)\s*(?:s|sec|seconds?)?\s*(?:and|to|-)\s*(\d+(?:\.\d+)?)/);
+  if(m){r.from=+m[1];r.to=+m[2]}else{const u=z=>z.startsWith('min')?60:1,
+    a=s.match(/after\s+(\d+(?:\.\d+)?)\s*(s|sec|seconds?|min|minutes?)/),b=s.match(/before\s+(\d+(?:\.\d+)?)\s*(s|sec|seconds?|min|minutes?)/);
+    if(a)r.from=+a[1]*u(a[2]);if(b)r.to=+b[1]*u(b[2])}
+  if(/\b\d{1,2}(:\d\d)?\s*(am|pm)\b/.test(s))r.unsup.push('clock times (the video only has offsets in seconds)');
+  for(const w of UNSUP)if(new RegExp('\\b'+w+'\\b').test(s))r.unsup.push('“'+w+'” detection');
+  return r}
+function search(q=$('q').value){if(typeof q!=='string')q=$('q').value;const p=parse(q),of=$('objf').value,mc=+$('minc').value/100,notes=[];
+  if(q.trim()&&!p.groups.length&&p.from==null&&p.to==null){$('results').innerHTML='';
+    $('msg').innerHTML='<div class="note">I couldn’t map that to something I can search. Try object names (person, car, bus, truck, bag…) and/or a time range such as “between 20 and 60 seconds”.'+(p.unsup.length?' Not supported: '+p.unsup.join('; ')+'.':'')+'</div>';return}
+  if(p.unsup.length)notes.push('Partly supported. Not understood: '+p.unsup.join('; ')+'. Showing object/time matches only.');
+  const gs=p.groups.slice();if(of)gs.push([of]);
+  let r=events.filter(e=>(p.from==null||e.t>=p.from)&&(p.to==null||e.t<=p.to)&&e.conf>=mc&&(!gs.length||(p.all||of?gs.every(g=>g.some(o=>e.objects.includes(o))):gs.some(g=>g.some(o=>e.objects.includes(o))))));
+  r.sort((a,b)=>b.conf-a.conf||a.t-b.t);
+  if(!r.length&&!notes.length)notes.push('No matching detections found.');
+  $('msg').innerHTML=(events.length?`<div class="mute">Keyword/object/time filtering (not semantic search). ${r.length} result${r.length==1?'':'s'}; candidates for human review.</div>`:'')+notes.map(n=>`<div class="note">${n}</div>`).join('');
+  $('results').innerHTML=r.slice(0,60).map(e=>`<article class="card"><img src="${e.thumb}" alt="Frame at ${fmt(e.t)}: ${e.desc}"><div>
+   <span class="t">${fmt(e.t)} <span class="mute">· ${Math.round(e.conf*100)}% conf.</span></span><span class="mute">${fname}</span><span>${e.desc}</span>
+   <span>${e.objects.map(o=>`<span class="tag">${o}</span>`).join('')}</span><button class="btn" data-t="${e.t}">Play at ${fmt(Math.max(0,e.t-3))}</button></div></article>`).join('')}
+$('form').onsubmit=e=>{e.preventDefault();search()};$('objf').onchange=()=>search();$('minc').onchange=()=>search();
+const SAMPLES=['Find people','Show all vehicle detections','Find a person near a vehicle','Show people between 20 and 60 seconds'];
+$('samples').innerHTML=SAMPLES.map(s=>`<button class="ghost">${s}</button>`).join('');
+$('samples').onclick=e=>{if(e.target.tagName==='BUTTON'){$('q').value=e.target.textContent;search()}};
+
+/* ---------- player ---------- */
+$('results').onclick=e=>{const b=e.target.closest('button[data-t]');if(b)play(+b.dataset.t)};
+function play(t){$('player').classList.remove('hide');$('ptitle').textContent=`${fname} · detection at ${fmt(t)}`;
+  const pv=$('vid');if(pv.dataset.src!==url){pv.src=url;pv.dataset.src=url}
+  const go=()=>{pv.currentTime=Math.max(0,t-3);pv.play()};pv.readyState>0?go():pv.onloadedmetadata=go;
+  $('tl').innerHTML=events.map(e=>`<button style="left:${e.t/dur*100}%" data-j="${e.t}" title="${fmt(e.t)}: ${e.objects.join(', ')}" aria-label="Jump to ${fmt(e.t)}"></button>`).join('');
+  $('player').scrollIntoView({behavior:'smooth'})}
+$('tl').onclick=e=>{const b=e.target.closest('[data-j]');if(b){$('vid').currentTime=+b.dataset.j;$('vid').play()}};
+$('close').onclick=()=>{$('vid').pause();$('player').classList.add('hide')};
+</script></body></html>
