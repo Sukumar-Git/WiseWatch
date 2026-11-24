@@ -1,80 +1,339 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>BlindSpot</title>
+<title>WiseWatch — Search CCTV footage by what happens in it</title>
+<meta name="description" content="WiseWatch finds people, vehicles and possible events in recorded CCTV, right in your browser, and takes you to the exact moment. Your video is never uploaded.">
+<meta name="theme-color" content="#071A3D">
+<meta property="og:title" content="WiseWatch">
+<meta property="og:description" content="Search recorded CCTV by what happens in it. Runs in your browser; your video never leaves your device.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23174EA6'/%3E%3Cstop offset='1' stop-color='%2316A6B6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='%23071A3D'/%3E%3Ccircle cx='16' cy='16' r='11' fill='none' stroke='url(%23g)' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%2373D9C2'/%3E%3C/svg%3E">
 <style>
-:root{--ink:#090b0e;--panel:#10141a;--edge:#222b35;--mute:#8794a3;--txt:#d7dde3;--sig:#ffc800;--inc:#ff8a5c;color-scheme:dark}
-*{box-sizing:border-box}body{margin:0;background:var(--ink);color:var(--txt);font:15px/1.45 ui-sans-serif,"Segoe UI",system-ui,sans-serif}
-header{display:flex;gap:12px;align-items:center;padding:14px 22px;border-bottom:1px solid var(--edge);flex-wrap:wrap}
-header i{width:12px;height:12px;background:var(--sig)}h1{font-size:20px;margin:0}header span,.mute{color:var(--mute);font-size:13px}
-main{max-width:1100px;margin:0 auto;padding:22px;display:grid;gap:18px}.panel{background:var(--panel);border:1px solid var(--edge);padding:14px}
-button,select,input{font:inherit;color:inherit}button{cursor:pointer}
-input[type=datetime-local],input[type=number]{background:var(--ink);border:1px solid var(--edge);padding:4px 6px}input[type=number]{width:64px}
-.btn{background:var(--sig);color:#000;border:0;padding:8px 16px;font-weight:600}.btn:disabled{opacity:.4;cursor:default}
-.ghost{background:none;border:1px solid var(--edge);padding:4px 9px;color:var(--mute);font-size:13px}.ghost:hover{border-color:var(--sig);color:#fff}
-.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.bar{height:4px;background:var(--edge);margin-top:8px}.bar div{height:4px;background:var(--sig);width:0}
-.search{display:flex;border:1px solid var(--edge);background:var(--panel)}.search:focus-within{border-color:var(--sig)}
-.search input{flex:1;min-width:0;background:none;border:0;outline:0;padding:12px 14px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
-.card{background:var(--panel);border:1px solid var(--edge)}.card.incident{border-color:#5a3a2d}.card img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#000}
-.card>div{padding:10px;display:grid;gap:4px;font-size:14px}.t{font-family:ui-monospace,Consolas,monospace;color:var(--sig)}
-.card.incident .t{color:var(--inc)}
-.tag{border:1px solid var(--edge);padding:0 6px;font-size:12px;margin-right:4px}.badge{border:1px solid var(--inc);color:var(--inc);padding:0 6px;font-size:12px}
-.note{border-left:3px solid var(--sig);background:var(--panel);padding:10px 12px;font-size:14px;margin-bottom:6px}
-.warn{border-left-color:var(--inc)}
-code{background:var(--ink);border:1px solid var(--edge);padding:6px 8px;display:block;overflow-x:auto;white-space:pre;font:13px ui-monospace,Consolas,monospace;margin:6px 0}
-video{width:100%;max-height:60vh;background:#000;display:block}
-.tl{position:relative;height:26px;background:var(--ink);border:1px solid var(--edge);margin-top:8px}
-.tl button{position:absolute;top:0;height:100%;width:5px;border:0;background:var(--sig);padding:0}.tl button.inc{background:var(--inc);height:60%;top:40%}
-#tools:not(.hide){display:grid;gap:14px}.hide{display:none}:focus-visible{outline:2px solid var(--sig);outline-offset:2px}
-.stats{display:flex;gap:22px;flex-wrap:wrap}.stats b{display:block;font-size:20px;color:#fff}
+:root{
+  --navy:#071A3D;--blue:#174EA6;--teal:#16A6B6;--mint:#73D9C2;--ice:#E5FFF5;
+  --bg:#071A3D;--text:#E5FFF5;--muted:rgba(229,255,245,.66);--faint:rgba(229,255,245,.52);
+  --line:rgba(229,255,245,.10);--line-2:rgba(115,217,194,.32);--warn:#FFB4A2;
+  --surf:linear-gradient(180deg,rgba(23,78,166,.20),rgba(23,78,166,.07));
+  --ease:cubic-bezier(.2,.7,.2,1);color-scheme:dark}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font:400 15px/1.55 "Helvetica Neue",Helvetica,Arial,"Liberation Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:
+  radial-gradient(900px 520px at 85% -8%,rgba(23,78,166,.55),transparent 62%),
+  radial-gradient(700px 480px at -5% 38%,rgba(22,166,182,.15),transparent 60%),
+  radial-gradient(600px 400px at 70% 105%,rgba(115,217,194,.07),transparent 60%),var(--bg)}
+button,input,select{font:inherit;color:inherit}button{cursor:pointer}
+:focus-visible{outline:2px solid var(--mint);outline-offset:3px;border-radius:8px}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.hide{display:none!important}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+[id]{scroll-margin-top:84px}
+
+/* navbar */
+.nav{position:sticky;top:0;z-index:30;backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);background:rgba(7,26,61,.74);border-bottom:1px solid var(--line)}
+.nav-in{max-width:1180px;margin:0 auto;padding:0 24px;height:64px;display:flex;align-items:center;gap:28px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:18px;letter-spacing:-.01em;color:var(--text);text-decoration:none}
+.brand svg{width:30px;height:30px;flex:none}
+.links{display:flex;gap:2px}
+.links a{position:relative;padding:8px 14px;color:var(--muted);text-decoration:none;font-weight:500;font-size:14px;border-radius:10px;transition:color .2s,background .2s}
+.links a:hover{color:var(--text);background:rgba(229,255,245,.05)}
+.links a.active{color:var(--text)}
+.links a.active::after{content:"";position:absolute;left:14px;right:14px;bottom:3px;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--blue),var(--mint))}
+.spacer{flex:1}
+.status{display:flex;align-items:center;gap:8px;padding:6px 13px;border:1px solid var(--line);border-radius:999px;font-size:13px;color:var(--muted);background:rgba(23,78,166,.12);white-space:nowrap}
+.status i{width:8px;height:8px;border-radius:50%;background:var(--faint);flex:none}
+.status[data-state=ready] i{background:var(--mint);box-shadow:0 0 0 4px rgba(115,217,194,.16)}
+.status[data-state=loading] i{background:var(--teal);animation:pulse 1.4s ease-in-out infinite}
+.status[data-state=error] i{background:var(--warn)}
+.menu{display:none;width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:rgba(23,78,166,.12);place-items:center}
+.menu span,.menu span::before,.menu span::after{display:block;width:16px;height:2px;border-radius:2px;background:var(--text);transition:transform .25s var(--ease),opacity .2s}
+.menu span{position:relative}.menu span::before,.menu span::after{content:"";position:absolute;left:0}
+.menu span::before{top:-5px}.menu span::after{top:5px}
+.nav.open .menu span{background:transparent}.nav.open .menu span::before{top:0;transform:rotate(45deg)}.nav.open .menu span::after{top:0;transform:rotate(-45deg)}
+
+/* hero */
+.hero{padding:72px 0 56px;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:56px;align-items:center}
+h1{font-weight:600;font-size:clamp(34px,5.2vw,58px);line-height:1.04;letter-spacing:-.03em;max-width:15ch}
+.lead{margin-top:18px;font-size:17px;line-height:1.55;color:var(--muted);max-width:46ch}
+.steps{list-style:none;padding:0;margin:30px 0 0;display:grid;gap:12px;counter-reset:s}
+.steps li{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:14.5px}
+.steps li::before{counter-increment:s;content:counter(s);flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:12.5px;font-weight:600;color:var(--mint);border:1px solid var(--line-2);background:rgba(115,217,194,.07)}
+.private{display:inline-flex;align-items:center;gap:8px;margin-top:28px;font-size:13.5px;color:var(--mint)}
+.private svg{width:16px;height:16px}
+
+/* surfaces */
+.panel{position:relative;background:var(--surf);border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:0 30px 80px -44px rgba(0,0,0,.7),inset 0 1px 0 rgba(229,255,245,.05)}
+.panel.glow::before{content:"";position:absolute;inset:-1px;border-radius:23px;padding:1px;pointer-events:none;background:linear-gradient(140deg,rgba(115,217,194,.5),rgba(23,78,166,0) 42%,rgba(22,166,182,.4));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+.stack{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.muted{color:var(--muted)}.small{font-size:13px;color:var(--faint)}
+
+/* dropzone */
+.dz{position:relative;display:flex;align-items:center;gap:16px;padding:22px;border:1.5px dashed var(--line-2);border-radius:18px;background:radial-gradient(420px 160px at 20% 0%,rgba(22,166,182,.13),transparent 70%),rgba(7,26,61,.5);cursor:pointer;transition:border-color .25s,background .25s,transform .25s var(--ease)}
+.dz:hover,.dz.drag{border-color:var(--mint);background:radial-gradient(420px 160px at 20% 0%,rgba(22,166,182,.22),transparent 70%),rgba(7,26,61,.5)}
+.dz.drag{transform:scale(1.01)}
+.dz:focus-within{outline:2px solid var(--mint);outline-offset:3px}
+.dz.has-file{border-style:solid}
+.dz-icon{flex:none;width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(23,78,166,.7),rgba(22,166,182,.55));transition:transform .25s var(--ease)}
+.dz:hover .dz-icon{transform:translateY(-2px)}
+.dz-icon svg{width:22px;height:22px}
+.dz-text{display:grid;gap:2px;min-width:0}
+.dz-text b{font-weight:600;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dz-text small{color:var(--faint);font-size:13px}
+
+/* controls */
+.field{display:grid;gap:8px}
+.field>span,.field label{font-size:13px;font-weight:500;color:var(--muted)}
+.seg{display:inline-flex;justify-self:start;max-width:100%;padding:3px;border:1px solid var(--line);border-radius:12px;background:rgba(7,26,61,.6)}
+.seg button{border:0;background:none;padding:7px 16px;border-radius:9px;color:var(--muted);font-weight:500;font-size:14px;min-height:36px;transition:background .2s,color .2s}
+.seg button:hover{color:var(--text)}
+.seg button[aria-checked=true]{background:linear-gradient(135deg,var(--blue),var(--teal));color:var(--ice)}
+input[type=number],input[type=datetime-local],select{max-width:100%;background:rgba(7,26,61,.6);border:1px solid var(--line);border-radius:12px;padding:9px 12px;min-height:40px;transition:border-color .2s,box-shadow .2s}
+input[type=number]{width:84px}
+select{appearance:none;padding-right:34px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%2373D9C2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+select option{background:var(--navy)}
+input[type=number]:focus,input[type=datetime-local]:focus,select:focus{outline:0;border-color:var(--teal);box-shadow:0 0 0 3px rgba(22,166,182,.22)}
+input[type=range]{accent-color:var(--teal);width:150px;height:24px}
+output{font-variant-numeric:tabular-nums;color:var(--mint);font-size:13px;min-width:38px;display:inline-block}
+details.adv{border:1px solid var(--line);border-radius:14px;background:rgba(7,26,61,.35)}
+details.adv summary{list-style:none;cursor:pointer;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;font-weight:500;font-size:14px;color:var(--muted);border-radius:14px;transition:color .2s}
+details.adv summary::-webkit-details-marker{display:none}
+details.adv summary:hover{color:var(--text)}
+details.adv summary svg{width:14px;height:14px;transition:transform .25s var(--ease)}
+details.adv[open] summary svg{transform:rotate(180deg)}
+.adv-body{padding:4px 16px 16px;display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+
+/* buttons */
+.btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:12px;padding:11px 20px;min-height:44px;font-weight:600;font-size:15px;color:var(--navy);background:linear-gradient(135deg,#16A6B6,#73D9C2);box-shadow:0 8px 26px -10px rgba(22,166,182,.75);transition:transform .2s var(--ease),box-shadow .2s,filter .2s}
+.btn:hover{transform:translateY(-1px);filter:brightness(1.06);box-shadow:0 12px 30px -10px rgba(115,217,194,.7)}
+.btn:active{transform:translateY(0) scale(.98)}
+.btn:disabled{opacity:.42;cursor:not-allowed;box-shadow:none;transform:none;filter:none}
+.btn.loading:disabled{opacity:.9;cursor:progress}
+.btn.loading::before{content:"";width:15px;height:15px;border-radius:50%;border:2px solid rgba(7,26,61,.3);border-top-color:var(--navy);animation:spin .7s linear infinite}
+.btn.sm{min-height:38px;padding:8px 14px;font-size:14px;border-radius:10px;width:100%}
+.btn.sm svg{width:14px;height:14px}
+.ghost{border:1px solid var(--line);background:rgba(229,255,245,.03);color:var(--muted);padding:7px 14px;border-radius:999px;font-size:13.5px;font-weight:500;min-height:36px;transition:border-color .2s,color .2s,background .2s,transform .2s var(--ease)}
+.ghost:hover{border-color:var(--line-2);color:var(--text);background:rgba(115,217,194,.07);transform:translateY(-1px)}
+.ghost.on{border-color:var(--mint);color:var(--mint);background:rgba(115,217,194,.1)}
+.close{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:none;color:var(--muted);display:grid;place-items:center;transition:color .2s,border-color .2s}
+.close:hover{color:var(--text);border-color:var(--line-2)}
+
+/* status + progress */
+.statusline{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:var(--muted)}
+.statusline::before{content:"";flex:none;width:8px;height:8px;margin-top:7px;border-radius:50%;background:var(--faint)}
+.statusline[data-state=busy]::before{background:var(--teal);animation:pulse 1.2s ease-in-out infinite}
+.statusline[data-state=done]::before{background:var(--mint)}
+.statusline[data-state=failed]{color:var(--warn)}.statusline[data-state=failed]::before{background:var(--warn)}
+.bar{height:6px;border-radius:6px;background:rgba(229,255,245,.08);overflow:hidden;display:none}
+.bar.on{display:block}
+.bar div{height:100%;width:0;border-radius:6px;background:linear-gradient(90deg,var(--blue),var(--teal),var(--mint));box-shadow:0 0 14px rgba(115,217,194,.55);transition:width .25s var(--ease)}
+.pct{font-variant-numeric:tabular-nums;color:var(--mint);margin-left:auto;font-weight:500}
+
+/* notes */
+.note{border:1px solid var(--line);border-left:3px solid var(--mint);border-radius:12px;background:rgba(23,78,166,.12);padding:12px 14px;font-size:14px;color:var(--text);line-height:1.5}
+.note+.note{margin-top:8px}
+.note.warn{border-left-color:var(--warn)}
+code{display:block;margin:10px 0;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:rgba(7,26,61,.8);color:var(--mint);font:13px/1.5 ui-monospace,Consolas,"Liberation Mono",monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+.modelpick{padding:12px 14px;border:1px dashed var(--line-2);border-radius:14px;font-size:13.5px;color:var(--muted)}
+.modelpick input{margin-top:8px;max-width:100%;color:var(--muted)}
+input[type=file]::file-selector-button{margin-right:10px;border:1px solid var(--line-2);background:rgba(115,217,194,.08);color:var(--mint);border-radius:8px;padding:6px 12px;font:inherit;cursor:pointer}
+
+/* results area */
+section.block{padding:24px 0 8px;display:grid;grid-template-columns:minmax(0,1fr);gap:18px}
+.head{display:grid;gap:4px}
+h2{font-weight:600;font-size:26px;letter-spacing:-.02em;line-height:1.2}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.stats>div{background:var(--surf);border:1px solid var(--line);border-radius:16px;padding:14px 16px;color:var(--muted);font-size:13px}
+.stats b{display:block;font-size:30px;font-weight:600;letter-spacing:-.02em;line-height:1.15;color:var(--text);font-variant-numeric:tabular-nums}
+.search{display:flex;align-items:center;gap:8px;padding:6px 6px 6px 18px;border-radius:18px;background:rgba(7,26,61,.7);border:1px solid var(--line);transition:border-color .25s,box-shadow .25s}
+.search:focus-within{border-color:var(--teal);box-shadow:0 0 0 4px rgba(22,166,182,.16),0 14px 44px -20px rgba(22,166,182,.7)}
+.search svg{width:20px;height:20px;flex:none;color:var(--faint)}
+.search input{flex:1;min-width:0;background:none;border:0;outline:0;padding:12px 4px;font-size:16px;color:var(--text)}
+.search input::placeholder{color:var(--faint)}
+.filters{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.filters label{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.summary{font-size:13.5px;color:var(--faint)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(262px,1fr));gap:18px}
+.card{background:var(--surf);border:1px solid var(--line);border-radius:18px;overflow:hidden;transition:transform .25s var(--ease),border-color .25s,box-shadow .25s}
+.card:hover{transform:translateY(-3px);border-color:var(--line-2);box-shadow:0 20px 44px -24px rgba(22,166,182,.55)}
+.thumb{position:relative;aspect-ratio:16/9;background:#041229;overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .6s var(--ease)}
+.card:hover .thumb img{transform:scale(1.04)}
+.thumb::after{content:"";position:absolute;inset:auto 0 0 0;height:55%;background:linear-gradient(transparent,rgba(7,26,61,.9));pointer-events:none}
+.chip{position:absolute;left:10px;top:10px;z-index:1;padding:3px 11px;border-radius:999px;font-size:12.5px;font-weight:500;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.chip-det{background:rgba(7,26,61,.72);border:1px solid var(--line);color:var(--ice)}
+.chip-ev{background:rgba(115,217,194,.16);border:1px solid rgba(115,217,194,.55);color:var(--mint)}
+.stamp{position:absolute;left:12px;bottom:9px;z-index:1;font-weight:600;font-size:14px;font-variant-numeric:tabular-nums}
+.body{padding:14px 16px 16px;display:grid;gap:10px}
+.desc{font-weight:500;font-size:14.5px;line-height:1.4}
+.meta{color:var(--faint);font-size:12.5px;overflow-wrap:anywhere}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{padding:1px 10px;border-radius:999px;border:1px solid var(--line);font-size:12px;color:var(--muted)}
+#results .card{animation:rise .5s var(--ease) both;animation-delay:calc(var(--i,0)*45ms)}
+.card.sk{animation:none!important}.card.sk:hover{transform:none;border-color:var(--line);box-shadow:none}
+.sk .thumb,.sk i{background:linear-gradient(100deg,rgba(23,78,166,.18) 30%,rgba(115,217,194,.16) 50%,rgba(23,78,166,.18) 70%);background-size:220% 100%;animation:shimmer 1.4s linear infinite}
+.sk i{display:block;height:12px;border-radius:6px}.sk i.s{width:55%}.sk .thumb::after{display:none}
+.empty{padding:28px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:18px}
+
+/* player */
+#player .top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+#player .top b{font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+video{width:100%;max-height:62vh;background:#020b1d;border-radius:14px;display:block}
+.legend{display:flex;gap:18px;margin-top:14px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+.legend span{display:inline-flex;align-items:center;gap:8px}.legend i{width:10px;height:10px;border-radius:3px;background:var(--teal)}.legend i.e{background:var(--mint);box-shadow:0 0 8px rgba(115,217,194,.7)}
+.tl{position:relative;height:34px;margin-top:8px;border-radius:10px;border:1px solid var(--line);background:rgba(7,26,61,.7)}
+.tl button{position:absolute;top:6px;bottom:6px;width:4px;margin-left:-2px;border:0;border-radius:3px;background:var(--teal);padding:0;opacity:.85;transition:transform .2s var(--ease),opacity .2s}
+.tl button.inc{top:3px;bottom:3px;width:5px;background:var(--mint);box-shadow:0 0 10px rgba(115,217,194,.7);opacity:1}
+.tl button:hover{transform:scaleX(1.8);opacity:1}
+
+/* about */
+#about{padding:56px 0 24px;display:grid;grid-template-columns:minmax(0,1fr);gap:22px}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.fact{background:var(--surf);border:1px solid var(--line);border-radius:18px;padding:20px;display:grid;gap:8px;align-content:start;transition:border-color .25s,transform .25s var(--ease)}
+.fact:hover{border-color:var(--line-2);transform:translateY(-2px)}
+.fact b{font-weight:600;font-size:15.5px}.fact p{font-size:14px;color:var(--muted);line-height:1.55}
+footer{border-top:1px solid var(--line);margin-top:40px;color:var(--faint);font-size:13px}
+.foot{padding-top:26px;padding-bottom:40px;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+footer .brand{font-size:15px}footer .brand svg{width:24px;height:24px}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:28px;z-index:50;transform:translate(-50%,16px);opacity:0;pointer-events:none;padding:11px 18px;border-radius:14px;background:rgba(10,38,88,.92);border:1px solid var(--line-2);color:var(--ice);font-size:14px;backdrop-filter:blur(10px);box-shadow:0 18px 50px -20px rgba(0,0,0,.8);transition:opacity .25s,transform .25s var(--ease);max-width:calc(100vw - 32px)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+@keyframes pulse{50%{opacity:.35}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes shimmer{to{background-position:-220% 0}}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}}
+
+@media(max-width:960px){
+  .hero{grid-template-columns:minmax(0,1fr);gap:32px;padding:44px 0 32px}
+  h1{max-width:18ch}
+  .facts{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  .nav-in{gap:12px;padding:0 16px}.wrap{padding:0 16px}
+  .menu{display:grid}
+  .links{display:none;position:absolute;top:64px;left:0;right:0;flex-direction:column;padding:10px 16px 16px;background:#071A3D;border-bottom:1px solid var(--line);box-shadow:0 24px 40px -24px rgba(0,0,0,.8)}
+  .nav.open .links{display:flex}.links a{padding:12px 14px}.links a.active::after{display:none}.links a.active{background:rgba(115,217,194,.08)}
+  .panel{padding:16px;border-radius:20px}
+  .facts{grid-template-columns:minmax(0,1fr)}
+  .search{padding-left:14px}.search .btn{padding:10px 14px}
+  .dz{padding:16px}
+  h2{font-size:23px}
+}
+@media(max-width:420px){.status span{display:none}.status{padding:9px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
 </style></head><body>
-<header><i></i><h1>BlindSpot</h1><span>Search recorded CCTV by what appears in it. Everything runs in your browser; your video is never uploaded.</span></header>
-<main>
-<section class="panel">
-  <div class="mute" id="model">Model: loading…</div>
-  <div class="row hide" id="modelpick" style="margin-top:8px"><span class="mute">Model file not found next to this page. Choose <b>yolov8n.onnx</b>:</span><input id="mfile" type="file" accept=".onnx"></div>
-  <hr style="border:0;border-top:1px solid var(--edge);margin:12px 0">
-  <div class="row">
-    <input id="file" type="file" accept="video/*,.mkv,.avi,.mov">
-    <label class="mute">Check every <select id="step"><option>1</option><option selected>2</option><option>5</option></select> s</label>
-    <label class="mute">Min confidence <input id="conf" type="range" min="25" max="80" value="40"></label>
-    <label class="mute" title="Used for unattended objects (this long) and people staying in place (twice this long)">Dwell time <input id="dwell" type="number" min="3" max="300" value="10"> s</label>
-    <button class="btn" id="go" disabled>Analyze video</button>
+<noscript><div class="wrap" style="padding-top:24px">WiseWatch needs JavaScript to analyse video in your browser.</div></noscript>
+
+<header class="nav" id="nav">
+  <div class="nav-in">
+    <a class="brand" href="#analyze" aria-label="WiseWatch home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#174EA6"/><stop offset="1" stop-color="#16A6B6"/></linearGradient></defs><circle cx="16" cy="16" r="12.5" fill="none" stroke="url(#lg)" stroke-width="3"/><path d="M8.6 16c1.9-3.1 4.5-4.7 7.4-4.7s5.500 1.600 7.400 4.700c-1.900 3.100-4.500 4.700-7.400 4.700S10.500 19.100 8.600 16z" fill="none" stroke="#73D9C2" stroke-width="1.5" stroke-linejoin="round"/><circle cx="16" cy="16" r="2.3" fill="#73D9C2"/></svg>
+      WiseWatch
+    </a>
+    <nav class="links" aria-label="Main">
+      <a href="#analyze">Analyze</a><a href="#tools" id="navResults">Results</a><a href="#about">About</a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="status" id="modelpill" data-state="loading" role="status"><i></i><span id="model">Loading model…</span></div>
+    <button class="menu" id="menu" aria-label="Open menu" aria-expanded="false"><span></span></button>
   </div>
-  <div class="row" style="margin-top:10px">
-    <label class="mute">Recording started at <input id="start" type="datetime-local" step="1"></label>
-    <span class="mute" id="startsrc">Used for searches like “after 5 PM”. Set it after choosing a video.</span>
-  </div>
-  <div class="mute" id="info" style="margin-top:8px">Choose an MP4/MOV/WebM recording you have permission to use. Status: waiting for a file. Falls and running are checked best with 1 s steps.</div>
-  <div class="bar"><div id="prog"></div></div>
-  <div id="convert" class="hide" style="margin-top:10px"></div>
-</section>
-<section id="tools" class="hide">
-  <div class="panel stats" id="stats"></div>
-  <div class="row" id="evchips"></div>
-  <form class="search" id="form"><input id="q" placeholder='Try "people running", "unattended bag", or "show cars after 5 PM"' aria-label="Search"><button class="btn">Search</button></form>
-  <div class="row" id="samples"></div>
-  <div class="row mute"><label>Object <select id="objf"><option value="">Any</option></select></label><label>Min confidence <input id="minc" type="range" min="0" max="90" value="0"></label></div>
-  <div id="msg"></div><div class="grid" id="results"></div>
-</section>
-<section id="player" class="panel hide">
-  <div class="row mute"><span id="ptitle"></span><button class="ghost" id="close" style="margin-left:auto">Close</button></div>
-  <video id="vid" controls></video>
-  <div class="mute" style="margin-top:8px">Timeline: yellow = object seen, orange = possible event (click to jump)</div><div class="tl" id="tl"></div>
-</section>
-<section class="panel mute" id="limits">
-  <b style="color:var(--txt)">What this can and can’t do</b>
-  <ul style="margin:6px 0 0;padding-left:18px">
-    <li>Search is rule-based: synonyms, typo tolerance, object names, time offsets and clock times. It is not an AI language model, so unusual phrasing may not be understood.</li>
-    <li>The detector finds objects (person, car, bus, truck, bag…). Falls, running, collisions, unattended objects, entering/leaving and people staying in place are <b>possible events</b> inferred from how boxes move between sampled frames. They can be wrong and are shown as candidates for human review.</li>
-    <li>“Suspicious”, fights, theft, weapons and faces are not detected.</li>
-    <li>Clock-time search needs the recording start time. It is read from the file when possible, otherwise estimated, and you can correct it.</li>
-    <li>Browsers play MP4 (H.264) reliably. AVI and some MOV/HEVC files may not play; the page will show a conversion command.</li>
-    <li>Use only footage you have permission to analyse.</li>
-  </ul>
-</section>
+</header>
+
+<main class="wrap">
+  <section class="hero" id="analyze">
+    <div>
+      <h1>Find the moment in hours of footage.</h1>
+      <p class="lead">Add a recording and WiseWatch spots people, vehicles and bags, flags possible events, and jumps you to the exact timestamp.</p>
+      <ol class="steps">
+        <li>Choose a recording</li>
+        <li>Analyze it on your device</li>
+        <li>Search, then play the moment</li>
+      </ol>
+      <div class="private"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Your video stays in this browser tab. Nothing is uploaded.</div>
+    </div>
+
+    <div class="panel glow stack">
+      <div class="modelpick hide" id="modelpick">Model file not found next to this page. Choose <b>yolov8n.onnx</b>:<br><input id="mfile" type="file" accept=".onnx" aria-label="Choose yolov8n.onnx"></div>
+
+      <label class="dz" id="dz" for="file">
+        <span class="dz-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#E5FFF5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/></svg></span>
+        <span class="dz-text"><b id="dzTitle">Drop a recording or browse</b><small id="dzSub">MP4, MOV or WebM · analysed on your device</small></span>
+        <input class="sr" id="file" type="file" accept="video/*,.mkv,.avi,.mov">
+      </label>
+
+      <div class="field"><span id="stepLabel">Check a frame every</span>
+        <div class="seg" role="radiogroup" aria-labelledby="stepLabel">
+          <button type="button" role="radio" aria-checked="false" data-v="1">1 s</button>
+          <button type="button" role="radio" aria-checked="true" data-v="2">2 s</button>
+          <button type="button" role="radio" aria-checked="false" data-v="5">5 s</button>
+        </div>
+        <select class="sr" id="step" tabindex="-1" aria-hidden="true"><option>1</option><option selected>2</option><option>5</option></select>
+        <span class="small">Falls and running are found more reliably at 1 s.</span>
+      </div>
+
+      <div class="field"><label for="start">Recording started at</label><input id="start" type="datetime-local" step="1"><span class="small" id="startsrc">Used for searches like “after 5 PM”. Set after choosing a video.</span></div>
+
+      <details class="adv">
+        <summary>Settings <svg viewBox="0 0 12 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 1.500l5 5 5-5"/></svg></summary>
+        <div class="adv-body">
+          <div class="field"><label for="conf">Minimum confidence <output id="confv">40%</output></label><input id="conf" type="range" min="25" max="80" value="40"></div>
+          <div class="field"><label for="dwell" title="Unattended objects are flagged after this long; people staying in place after twice this long">Dwell time</label><div class="row" style="gap:8px"><input id="dwell" type="number" min="3" max="300" value="10" inputmode="numeric"><span class="small">seconds</span></div></div>
+        </div>
+      </details>
+
+      <button class="btn" id="go" disabled><span id="gotxt">Analyze video</span></button>
+      <div class="bar" id="barwrap"><div id="prog"></div></div>
+      <div class="statusline" id="info" data-state="">Choose a recording you have permission to use. Status: waiting for a file.<span class="pct" id="pct"></span></div>
+      <div id="convert" class="hide"></div>
+    </div>
+  </section>
+
+  <section id="tools" class="block hide">
+    <div class="head"><h2>Results</h2><p class="muted">Search by object, event or time. Every match is a candidate for human review.</p></div>
+    <div class="stats" id="stats"></div>
+    <div class="row" id="evchips"></div>
+    <form class="search" id="form" role="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.500-3.500"/></svg>
+      <input id="q" placeholder="Try “people running”, “unattended bag” or “cars after 5 PM”" aria-label="Search the footage" autocomplete="off">
+      <button class="btn">Search</button>
+    </form>
+    <div class="row" id="samples"></div>
+    <div class="filters">
+      <label>Object <select id="objf"><option value="">Any</option></select></label>
+      <label>Minimum confidence <input id="minc" type="range" min="0" max="90" value="0"><output id="mincv">0%</output></label>
+    </div>
+    <div id="msg"></div>
+    <div class="grid" id="results" aria-live="polite"></div>
+  </section>
+
+  <section id="player" class="panel hide" style="margin-top:24px">
+    <div class="top"><b id="ptitle"></b><button class="close" id="close" style="margin-left:auto" aria-label="Close player"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg></button></div>
+    <video id="vid" controls playsinline></video>
+    <div class="legend"><span><i></i>Object seen</span><span><i class="e"></i>Possible event</span><span class="small">Click a marker to jump</span></div>
+    <div class="tl" id="tl"></div>
+  </section>
+
+  <section id="about">
+    <div class="head"><h2>About WiseWatch</h2><p class="muted">What it does well, and where it needs a human.</p></div>
+    <div class="facts">
+      <div class="fact"><b>What it detects</b><p>People, vehicles, bags and other everyday objects, using YOLOv8n running in your browser.</p></div>
+      <div class="fact"><b>What it infers</b><p>Possible falls, running, collisions, unattended objects, entering or leaving the view, and people staying in place. These come from how boxes move between sampled frames, so treat each as a candidate to review.</p></div>
+      <div class="fact"><b>What it can’t do</b><p>Judge intent. Suspicious behaviour, fights, theft, weapons and faces aren’t detected, and named places such as “parking area” aren’t known.</p></div>
+      <div class="fact"><b>How search works</b><p>Rules, not an AI language model: synonyms, typo tolerance, object names, time offsets and clock times.</p></div>
+      <div class="fact"><b>Clock times and playback</b><p>Clock searches use the recording start time, read from the file when possible. MP4 (H.264) plays reliably; AVI and some MOV files need converting, and WiseWatch shows the command.</p></div>
+      <div class="fact"><b>Your footage</b><p>Analysis happens on your device and nothing is uploaded. Use only footage you have permission to analyse.</p></div>
+    </div>
+  </section>
 </main>
+
+<footer><div class="wrap foot">
+  <a class="brand" href="#analyze"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="12.5" fill="none" stroke="url(#lg)" stroke-width="3"/><circle cx="16" cy="16" r="2.3" fill="#73D9C2"/></svg>WiseWatch</a>
+  <span>Runs in your browser · Detections are candidates for human review</span>
+</div></footer>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.min.js"></script>
 <script>
 /* BEGIN LOGIC */
@@ -261,6 +520,10 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 const pad=n=>String(n).padStart(2,'0');
 let session=null,url=null,events=[],incidents=[],thumbs=[],dur=0,fname='',curFile=null,vw=0,vh=0,usedStep=2;
 
+let toastT;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2800)}
+function setModel(state,text){$('model').textContent=text;$('modelpill').dataset.state=state}
+function setInfo(text,state){const i=$('info'),p=$('pct');i.firstChild.nodeValue=text;i.dataset.state=state||''}
+
 const toLocalInput=ms=>{const d=new Date(ms);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`};
 const startMs=()=>{const v=$('start').value;if(!v)return null;const ms=new Date(v).getTime();return isNaN(ms)?null:ms};
 const startTod=()=>{const ms=startMs();if(ms==null)return null;const d=new Date(ms);return d.getHours()*3600+d.getMinutes()*60+d.getSeconds()};
@@ -276,14 +539,28 @@ async function readCreation(file){
         return(unix>946684800&&unix*1000<Date.now()+864e5)?unix*1000:null}}}catch(e){}
   return null}
 
+/* ---- navigation ---- */
+const nav=$('nav');
+$('menu').onclick=()=>{const o=nav.classList.toggle('open');$('menu').setAttribute('aria-expanded',o);$('menu').setAttribute('aria-label',o?'Close menu':'Open menu')};
+document.querySelectorAll('.links a,.brand').forEach(a=>a.addEventListener('click',e=>{nav.classList.remove('open');$('menu').setAttribute('aria-expanded','false');
+  if(a.id==='navResults'&&$('tools').classList.contains('hide')){e.preventDefault();toast('Analyze a video first to see results')}}));
+const spy=[...document.querySelectorAll('.links a')],targets=spy.map(a=>document.querySelector(a.getAttribute('href')));
+if('IntersectionObserver'in window){const io=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){spy.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+en.target.id))}})},{rootMargin:'-35% 0px -55% 0px'});
+  targets.forEach(t=>t&&io.observe(t))}
+
 /* ---- model ---- */
 ort.env.wasm.wasmPaths='https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/';ort.env.wasm.numThreads=1;
 async function loadModel(buf){try{session=await ort.InferenceSession.create(buf,{executionProviders:['wasm']});
-  $('model').textContent='Model: YOLOv8n loaded (runs in your browser).';$('modelpick').classList.add('hide');ready()}
-  catch(e){$('model').textContent='Model failed to load: '+e.message}}
+  setModel('ready','Model ready');$('modelpick').classList.add('hide');ready()}
+  catch(e){setModel('error','Model failed to load');toast('Model failed to load: '+e.message)}}
 (async()=>{try{const r=await fetch('yolov8n.onnx');if(!r.ok)throw 0;await loadModel(await r.arrayBuffer())}
-  catch(e){$('model').textContent='Model: not loaded yet.';$('modelpick').classList.remove('hide')}})();
-$('mfile').onchange=async e=>{if(e.target.files[0])await loadModel(await e.target.files[0].arrayBuffer())};
+  catch(e){setModel('idle','Model not loaded');$('modelpick').classList.remove('hide')}})();
+$('mfile').onchange=async e=>{if(e.target.files[0]){setModel('loading','Loading model…');await loadModel(await e.target.files[0].arrayBuffer())}};
+
+/* ---- controls ---- */
+document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{$('step').value=b.dataset.v;document.querySelectorAll('.seg button').forEach(x=>x.setAttribute('aria-checked',x===b))});
+$('conf').oninput=()=>{$('confv').textContent=$('conf').value+'%'};
+$('minc').oninput=()=>{$('mincv').textContent=$('minc').value+'%'};
 
 /* ---- video + conversion help ---- */
 const v=document.createElement('video');v.muted=true;v.playsInline=true;v.preload='auto';
@@ -293,49 +570,60 @@ function showConvert(file,reason){const n=file?file.name:'video',base=n.replace(
   $('convert').classList.remove('hide');
   $('convert').innerHTML=`<div class="note warn"><b>${esc(reason)}</b><br>Convert it to an H.264 MP4, then choose the new file. With ffmpeg installed, run:<code id="cmd">${esc(cmd)}</code>
    <button class="ghost" id="copycmd" type="button">Copy command</button>
-   <div class="mute" style="margin-top:6px">No ffmpeg? HandBrake or VLC (Media → Convert/Save) can also write H.264 MP4. Online converters upload your footage to a third party, so avoid them for sensitive recordings.</div></div>`;
-  $('copycmd').onclick=()=>{try{navigator.clipboard.writeText(cmd);$('copycmd').textContent='Copied'}catch(e){}}}
+   <div class="small" style="margin-top:10px">No ffmpeg? HandBrake or VLC (Media → Convert/Save) can also write H.264 MP4. Online converters upload your footage to a third party, so avoid them for sensitive recordings.</div></div>`;
+  $('copycmd').onclick=()=>{try{navigator.clipboard.writeText(cmd);toast('Command copied')}catch(e){toast('Select the command and copy it manually')}}}
 function hideConvert(){$('convert').classList.add('hide');$('convert').innerHTML=''}
 
+/* ---- dropzone ---- */
+const dz=$('dz');
+['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('drag')}));
+['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('drag')}));
+dz.addEventListener('drop',e=>{const f=e.dataTransfer&&e.dataTransfer.files[0];if(f){const dt=new DataTransfer();dt.items.add(f);$('file').files=dt.files;$('file').dispatchEvent(new Event('change'))}});
+['dragover','drop'].forEach(ev=>window.addEventListener(ev,e=>{if(!dz.contains(e.target))e.preventDefault()}));
+
 $('file').onchange=e=>{const f=e.target.files[0];if(!f)return;if(url)URL.revokeObjectURL(url);url=URL.createObjectURL(f);curFile=f;fname=f.name;v.src=url;
-  events=[];incidents=[];thumbs=[];dur=0;ready();hideConvert();$('tools').classList.add('hide');$('player').classList.add('hide');
-  $('info').textContent=`${f.name} · ${(f.size/1048576).toFixed(1)} MB · status: loading…`;
+  events=[];incidents=[];thumbs=[];dur=0;ready();hideConvert();$('tools').classList.add('hide');$('player').classList.add('hide');$('barwrap').classList.remove('on');$('prog').style.width='0';$('pct').textContent='';
+  dz.classList.add('has-file');$('dzTitle').textContent=f.name;$('dzSub').textContent=`${(f.size/1048576).toFixed(1)} MB · click to change`;
+  setInfo(`${f.name} · ${(f.size/1048576).toFixed(1)} MB · status: loading…`,'busy');
   if(/\.(avi|mkv|wmv|flv)$/i.test(f.name))showConvert(f,'AVI/MKV/WMV files usually can’t be played by browsers. I’ll still try to read it.');
   v.onloadedmetadata=async()=>{dur=v.duration;vw=v.videoWidth;vh=v.videoHeight;
-    $('info').textContent=`${f.name} · ${(f.size/1048576).toFixed(1)} MB · ${fmtT(dur)} long · status: uploaded`+(session?'':' (load the model first)');
+    setInfo(`${f.name} · ${fmtT(dur)} long · status: uploaded`+(session?'':' (load the model first)'),'');
     const c=await readCreation(f);
     if(c){$('start').value=toLocalInput(c);$('startsrc').textContent='Read from the video’s metadata (stored in UTC, shown in your time zone). Correct it if your recorder uses another clock.'}
     else{$('start').value=toLocalInput((f.lastModified||Date.now())-dur*1000);$('startsrc').textContent='Estimated from the file date minus the video length. Please correct it for clock-time searches.'}
     ready()};
-  v.onerror=()=>{dur=0;ready();$('info').textContent='This browser can’t read that video.';showConvert(f,'This browser can’t play this video format or codec.')}};
+  v.onerror=()=>{dur=0;ready();setInfo('This browser can’t read that video.','failed');showConvert(f,'This browser can’t play this video format or codec.')}};
 const seek=t=>new Promise((res,rej)=>{const tm=setTimeout(()=>{v.readyState>=2?res():rej(new Error('Timed out reading a video frame'))},4000);
   v.onseeked=()=>{clearTimeout(tm);res()};v.onerror=()=>{clearTimeout(tm);rej(new Error('Video decode error'))};
   v.currentTime=Math.min(t,Math.max(0,dur-.05))});
 
 /* ---- analysis ---- */
+const SK='<div class="card sk"><div class="thumb"></div><div class="body"><i></i><i class="s"></i></div></div>';
 $('go').onclick=async()=>{
   const step=+$('step').value,conf=+$('conf').value/100,dwell=+$('dwell').value||10;usedStep=step;
-  $('go').disabled=true;events=[];incidents=[];thumbs=[];$('tools').classList.remove('hide');$('results').innerHTML='';$('msg').innerHTML='';$('evchips').innerHTML='';
+  $('go').disabled=true;$('go').classList.add('loading');$('gotxt').textContent='Analyzing…';$('barwrap').classList.add('on');
+  events=[];incidents=[];thumbs=[];$('tools').classList.remove('hide');$('msg').innerHTML='';$('evchips').innerHTML='';$('stats').innerHTML='';$('results').innerHTML=SK+SK+SK;
   const s=Math.min(640/vw,640/vh),nw=Math.round(vw*s),nh=Math.round(vh*s),px=(640-nw)>>1,py=(640-nh)>>1;
   const c=document.createElement('canvas');c.width=c.height=640;const x=c.getContext('2d',{willReadFrequently:true});
   const tw=480,th=Math.round(480*vh/vw),tc=document.createElement('canvas');tc.width=tw;tc.height=th;const tx=tc.getContext('2d');
-  const n=Math.floor(dur/step),frames=[];
+  const n=Math.floor(dur/step),frames=[];let ok=false;
   try{for(let i=0;i<=n;i++){const t=i*step;await seek(t);
     x.fillStyle='#727272';x.fillRect(0,0,640,640);x.drawImage(v,px,py,nw,nh);
     const d=x.getImageData(0,0,640,640).data,f=new Float32Array(3*640*640),P=640*640;
     for(let p=0;p<P;p++){f[p]=d[p*4]/255;f[P+p]=d[p*4+1]/255;f[2*P+p]=d[p*4+2]/255}
     const res=await session.run({[session.inputNames[0]]:new ort.Tensor('float32',f,[1,3,640,640])});
     const o=res[session.outputNames[0]],dets=decode(o.data,o.dims,conf,s,px,py,vw,vh);frames.push({t,dets});
-    if(dets.length){tx.drawImage(v,0,0,tw,th);const k=tw/vw;tx.lineWidth=2;tx.font='13px sans-serif';
-      for(const dt of dets){const[a,b,e2,f2]=dt.box;tx.strokeStyle='#ffc800';tx.strokeRect(a*k,b*k,(e2-a)*k,(f2-b)*k);tx.fillStyle='#ffc800';tx.fillText(`${dt.label} ${dt.conf.toFixed(2)}`,a*k+2,Math.max(12,b*k-4))}
+    if(dets.length){tx.drawImage(v,0,0,tw,th);const k=tw/vw;tx.lineWidth=2;tx.font='13px Helvetica,Arial,sans-serif';
+      for(const dt of dets){const[a,b,e2,f2]=dt.box;tx.strokeStyle='#73D9C2';tx.strokeRect(a*k,b*k,(e2-a)*k,(f2-b)*k);tx.fillStyle='#73D9C2';tx.fillText(`${dt.label} ${dt.conf.toFixed(2)}`,a*k+2,Math.max(12,b*k-4))}
       const cnt={};dets.forEach(z=>cnt[z.label]=(cnt[z.label]||0)+1);const thumb=tc.toDataURL('image/jpeg',.75);thumbs.push({t,thumb});
       events.push({t,objects:Object.keys(cnt).sort(),conf:Math.max(...dets.map(z=>z.conf)),thumb,
         desc:'Detected: '+Object.entries(cnt).sort((a,b)=>b[1]-a[1]).map(([l,m])=>m+' '+l).join(', ')})}
-    $('prog').style.width=(i/n*100)+'%';$('info').textContent=`${fname} · status: processing ${i+1}/${n+1} frames`}
-    incidents=detectIncidents(frames,buildTracks(frames,step),{step,W:vw,H:vh,dwell});
-    $('info').textContent=`${fname} · ${fmtT(dur)} · status: completed (${n+1} frames checked, ${events.length} with detections, ${incidents.length} possible events)`;
-  }catch(e){$('info').textContent='status: failed — '+e.message;if(/decode|Timed out/i.test(e.message))showConvert(curFile,'The video couldn’t be read frame by frame.')}
-  ready();stats();search('')};
+    $('prog').style.width=(i/n*100)+'%';$('pct').textContent=Math.round(i/n*100)+'%';setInfo(`${fname} · status: processing ${i+1}/${n+1} frames`,'busy')}
+    incidents=detectIncidents(frames,buildTracks(frames,step),{step,W:vw,H:vh,dwell});ok=true;
+    setInfo(`${fname} · ${fmtT(dur)} · status: completed (${n+1} frames checked, ${events.length} with detections, ${incidents.length} possible events)`,'done');
+  }catch(e){setInfo('status: failed — '+e.message,'failed');if(/decode|Timed out/i.test(e.message))showConvert(curFile,'The video couldn’t be read frame by frame.')}
+  $('go').classList.remove('loading');$('gotxt').textContent='Analyze video';$('pct').textContent=ok?'100%':'';
+  ready();stats();search('');if(ok){$('tools').scrollIntoView({behavior:'smooth',block:'start'});toast(`Analysis complete: ${events.length} moments, ${incidents.length} possible events`)}};
 
 function stats(){const cnt={};events.forEach(e=>e.objects.forEach(o=>cnt[o]=(cnt[o]||0)+1));
   $('stats').innerHTML=`<div><b>${events.length}</b>indexed moments</div><div><b>${incidents.length}</b>possible events</div><div><b>${fmtT(dur)}</b>video length</div>`+Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([o,m])=>`<div><b>${m}</b>${esc(o)}</div>`).join('');
@@ -345,20 +633,24 @@ function stats(){const cnt={};events.forEach(e=>e.objects.forEach(o=>cnt[o]=(cnt
 $('evchips').onclick=e=>{const b=e.target.closest('[data-q]');if(b){$('q').value=b.dataset.q;search()}};
 
 /* ---- search + render ---- */
-function card(it){const clk=clockOf(it.t),when=`${fmtT(it.t)}${it.kind==='incident'&&it.t2>it.t?'–'+fmtT(it.t2):''}`,clkTxt=clk?` · ${clk}`:'';
-  const tb=it.kind==='incident'?(thumbs.slice().sort((a,b)=>Math.abs(a.t-it.t)-Math.abs(b.t-it.t))[0]||{}).thumb:it.thumb;
-  const head=it.kind==='incident'?`<span><b>${TYPE_LABEL[it.type]}</b> <span class="badge">reliability: ${it.rel}</span></span>`:'';
-  return `<article class="card ${it.kind}"><img src="${tb||''}" alt="Frame near ${fmtT(it.t)}: ${esc(it.desc)}"><div>${head}
-   <span class="t">${when}${clkTxt}${it.kind==='detection'?` <span class="mute">· ${Math.round(it.conf*100)}% conf.</span>`:''}</span><span class="mute">${esc(fname)}</span><span>${esc(it.desc)}</span>
-   <span>${it.objects.map(o=>`<span class="tag">${esc(o)}</span>`).join('')}</span><button class="btn" data-t="${it.t}">Play at ${fmtT(Math.max(0,it.t-3))}</button></div></article>`}
+const PLAY='<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.500v11l9-5.500z"/></svg>';
+function card(it,i){const clk=clockOf(it.t),inc=it.kind==='incident',when=fmtT(it.t)+(inc&&it.t2>it.t?'–'+fmtT(it.t2):'');
+  const tb=inc?(thumbs.slice().sort((a,b)=>Math.abs(a.t-it.t)-Math.abs(b.t-it.t))[0]||{}).thumb:it.thumb;
+  return `<article class="card ${it.kind}" style="--i:${Math.min(i,12)}"><div class="thumb"><img src="${tb||''}" alt="Frame near ${fmtT(it.t)}: ${esc(it.desc)}" loading="lazy">
+   <span class="chip ${inc?'chip-ev':'chip-det'}">${inc?TYPE_LABEL[it.type]:'Detection'}</span><span class="stamp">${when}</span></div>
+   <div class="body"><p class="desc">${esc(it.desc)}</p>
+   <p class="meta">${clk?clk+' · ':''}${inc?'reliability: '+it.rel:Math.round(it.conf*100)+'% confidence'} · ${esc(fname)}</p>
+   <div class="tags">${it.objects.map(o=>`<span class="tag">${esc(o)}</span>`).join('')}</div>
+   <button class="btn sm" data-t="${it.t}">${PLAY}Play at ${fmtT(Math.max(0,it.t-3))}</button></div></article>`}
 function search(q=$('q').value){if(typeof q!=='string')q=$('q').value;
   const r=searchData(q,{startTod:startTod(),dur,step:usedStep},{events,incidents,minc:+$('minc').value/100,objf:$('objf').value});
   const shown=r.items.slice(0,60);
-  $('msg').innerHTML=(events.length||incidents.length?`<div class="mute" style="margin-bottom:6px">Rule-based search (synonyms, typos, objects, events, times). ${r.items.length} result${r.items.length==1?'':'s'}${r.items.length>60?' (showing 60)':''}; candidates for human review.</div>`:'')+r.notes.map(n=>`<div class="note ${/Not supported|couldn’t map/.test(n)?'warn':''}">${esc(n)}</div>`).join('');
-  $('results').innerHTML=shown.map(card).join('')}
+  $('msg').innerHTML=(events.length||incidents.length?`<p class="summary" style="margin-bottom:10px">Rule-based search (synonyms, typos, objects, events, times). ${r.items.length} result${r.items.length==1?'':'s'}${r.items.length>60?' (showing 60)':''}.</p>`:'')+r.notes.map(n=>`<div class="note ${/Not supported|couldn’t map/.test(n)?'warn':''}">${esc(n)}</div>`).join('');
+  $('results').innerHTML=shown.map(card).join('');
+  document.querySelectorAll('#evchips .ghost,#samples .ghost').forEach(b=>b.classList.toggle('on',(b.dataset.q||b.textContent)===q))}
 $('form').onsubmit=e=>{e.preventDefault();search()};$('objf').onchange=()=>search();$('minc').onchange=()=>search();
 const SAMPLES=['Find people','Show all vehicle detections','Find a person near a vehicle','Show people between 20 and 60 seconds','Possible falls','People running','Unattended bags','Show activity after 5 PM'];
-$('samples').innerHTML=SAMPLES.map(s=>`<button class="ghost">${s}</button>`).join('');
+$('samples').innerHTML=SAMPLES.map(s=>`<button class="ghost" type="button">${s}</button>`).join('');
 $('samples').onclick=e=>{if(e.target.tagName==='BUTTON'){$('q').value=e.target.textContent;search()}};
 
 /* ---- player ---- */
@@ -369,7 +661,7 @@ function play(t){$('player').classList.remove('hide');$('ptitle').textContent=`$
   const go=()=>{pv.currentTime=Math.max(0,t-3);pv.play().catch(()=>{})};pv.readyState>0?go():pv.onloadedmetadata=go;
   $('tl').innerHTML=events.map(e=>`<button style="left:${e.t/dur*100}%" data-j="${e.t}" title="${fmtT(e.t)}: ${esc(e.objects.join(', '))}" aria-label="Jump to ${fmtT(e.t)}"></button>`).join('')+
     incidents.map(e=>`<button class="inc" style="left:${e.t/dur*100}%" data-j="${e.t}" title="${fmtT(e.t)}: ${TYPE_LABEL[e.type]}" aria-label="Jump to ${TYPE_LABEL[e.type]} at ${fmtT(e.t)}"></button>`).join('');
-  $('player').scrollIntoView({behavior:'smooth'})}
+  $('player').scrollIntoView({behavior:'smooth',block:'center'})}
 $('tl').onclick=e=>{const b=e.target.closest('[data-j]');if(b){$('vid').currentTime=+b.dataset.j;$('vid').play().catch(()=>{})}};
 $('close').onclick=()=>{$('vid').pause();$('player').classList.add('hide')};
 </script></body></html>
