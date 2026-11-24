@@ -3,25 +3,29 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>BlindSpot</title>
 <style>
-:root{--ink:#090b0e;--panel:#10141a;--edge:#222b35;--mute:#8794a3;--txt:#d7dde3;--sig:#ffc800;color-scheme:dark}
+:root{--ink:#090b0e;--panel:#10141a;--edge:#222b35;--mute:#8794a3;--txt:#d7dde3;--sig:#ffc800;--inc:#ff8a5c;color-scheme:dark}
 *{box-sizing:border-box}body{margin:0;background:var(--ink);color:var(--txt);font:15px/1.45 ui-sans-serif,"Segoe UI",system-ui,sans-serif}
 header{display:flex;gap:12px;align-items:center;padding:14px 22px;border-bottom:1px solid var(--edge);flex-wrap:wrap}
 header i{width:12px;height:12px;background:var(--sig)}h1{font-size:20px;margin:0}header span,.mute{color:var(--mute);font-size:13px}
 main{max-width:1100px;margin:0 auto;padding:22px;display:grid;gap:18px}.panel{background:var(--panel);border:1px solid var(--edge);padding:14px}
 button,select,input{font:inherit;color:inherit}button{cursor:pointer}
+input[type=datetime-local],input[type=number]{background:var(--ink);border:1px solid var(--edge);padding:4px 6px}input[type=number]{width:64px}
 .btn{background:var(--sig);color:#000;border:0;padding:8px 16px;font-weight:600}.btn:disabled{opacity:.4;cursor:default}
 .ghost{background:none;border:1px solid var(--edge);padding:4px 9px;color:var(--mute);font-size:13px}.ghost:hover{border-color:var(--sig);color:#fff}
 .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.bar{height:4px;background:var(--edge);margin-top:8px}.bar div{height:4px;background:var(--sig);width:0}
 .search{display:flex;border:1px solid var(--edge);background:var(--panel)}.search:focus-within{border-color:var(--sig)}
 .search input{flex:1;min-width:0;background:none;border:0;outline:0;padding:12px 14px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
-.card{background:var(--panel);border:1px solid var(--edge)}.card img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#000}
-.card div{padding:10px;display:grid;gap:4px;font-size:14px}.t{font-family:ui-monospace,Consolas,monospace;color:var(--sig)}
-.tag{border:1px solid var(--edge);padding:0 6px;font-size:12px;margin-right:4px}
-.note{border-left:3px solid var(--sig);background:var(--panel);padding:10px 12px;font-size:14px}.err{border-color:#ff7b7b}
+.card{background:var(--panel);border:1px solid var(--edge)}.card.incident{border-color:#5a3a2d}.card img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#000}
+.card>div{padding:10px;display:grid;gap:4px;font-size:14px}.t{font-family:ui-monospace,Consolas,monospace;color:var(--sig)}
+.card.incident .t{color:var(--inc)}
+.tag{border:1px solid var(--edge);padding:0 6px;font-size:12px;margin-right:4px}.badge{border:1px solid var(--inc);color:var(--inc);padding:0 6px;font-size:12px}
+.note{border-left:3px solid var(--sig);background:var(--panel);padding:10px 12px;font-size:14px;margin-bottom:6px}
+.warn{border-left-color:var(--inc)}
+code{background:var(--ink);border:1px solid var(--edge);padding:6px 8px;display:block;overflow-x:auto;white-space:pre;font:13px ui-monospace,Consolas,monospace;margin:6px 0}
 video{width:100%;max-height:60vh;background:#000;display:block}
 .tl{position:relative;height:26px;background:var(--ink);border:1px solid var(--edge);margin-top:8px}
-.tl button{position:absolute;top:0;height:100%;width:5px;border:0;background:var(--sig);padding:0}
+.tl button{position:absolute;top:0;height:100%;width:5px;border:0;background:var(--sig);padding:0}.tl button.inc{background:var(--inc);height:60%;top:40%}
 #tools:not(.hide){display:grid;gap:14px}.hide{display:none}:focus-visible{outline:2px solid var(--sig);outline-offset:2px}
 .stats{display:flex;gap:22px;flex-wrap:wrap}.stats b{display:block;font-size:20px;color:#fff}
 </style></head><body>
@@ -32,17 +36,24 @@ video{width:100%;max-height:60vh;background:#000;display:block}
   <div class="row hide" id="modelpick" style="margin-top:8px"><span class="mute">Model file not found next to this page. Choose <b>yolov8n.onnx</b>:</span><input id="mfile" type="file" accept=".onnx"></div>
   <hr style="border:0;border-top:1px solid var(--edge);margin:12px 0">
   <div class="row">
-    <input id="file" type="file" accept="video/*">
+    <input id="file" type="file" accept="video/*,.mkv,.avi,.mov">
     <label class="mute">Check every <select id="step"><option>1</option><option selected>2</option><option>5</option></select> s</label>
     <label class="mute">Min confidence <input id="conf" type="range" min="25" max="80" value="40"></label>
+    <label class="mute" title="Used for unattended objects (this long) and people staying in place (twice this long)">Dwell time <input id="dwell" type="number" min="3" max="300" value="10"> s</label>
     <button class="btn" id="go" disabled>Analyze video</button>
   </div>
-  <div class="mute" id="info" style="margin-top:8px">Choose an MP4/MOV/WebM recording you have permission to use. Status: waiting for a file.</div>
+  <div class="row" style="margin-top:10px">
+    <label class="mute">Recording started at <input id="start" type="datetime-local" step="1"></label>
+    <span class="mute" id="startsrc">Used for searches like “after 5 PM”. Set it after choosing a video.</span>
+  </div>
+  <div class="mute" id="info" style="margin-top:8px">Choose an MP4/MOV/WebM recording you have permission to use. Status: waiting for a file. Falls and running are checked best with 1 s steps.</div>
   <div class="bar"><div id="prog"></div></div>
+  <div id="convert" class="hide" style="margin-top:10px"></div>
 </section>
 <section id="tools" class="hide">
   <div class="panel stats" id="stats"></div>
-  <form class="search" id="form"><input id="q" placeholder='Try "find people" or "show people near a vehicle between 20 and 60 seconds"' aria-label="Search"><button class="btn">Search</button></form>
+  <div class="row" id="evchips"></div>
+  <form class="search" id="form"><input id="q" placeholder='Try "people running", "unattended bag", or "show cars after 5 PM"' aria-label="Search"><button class="btn">Search</button></form>
   <div class="row" id="samples"></div>
   <div class="row mute"><label>Object <select id="objf"><option value="">Any</option></select></label><label>Min confidence <input id="minc" type="range" min="0" max="90" value="0"></label></div>
   <div id="msg"></div><div class="grid" id="results"></div>
@@ -50,18 +61,28 @@ video{width:100%;max-height:60vh;background:#000;display:block}
 <section id="player" class="panel hide">
   <div class="row mute"><span id="ptitle"></span><button class="ghost" id="close" style="margin-left:auto">Close</button></div>
   <video id="vid" controls></video>
-  <div class="mute" style="margin-top:8px">All detected moments (click to jump):</div><div class="tl" id="tl"></div>
+  <div class="mute" style="margin-top:8px">Timeline: yellow = object seen, orange = possible event (click to jump)</div><div class="tl" id="tl"></div>
 </section>
-<p class="mute">Detections are candidates for human review. This tool finds objects (person, car, bus, truck, bag…) and shows when they appear. It does not detect falls, collisions or suspicious behaviour. Use only footage you have permission to analyse.</p>
+<section class="panel mute" id="limits">
+  <b style="color:var(--txt)">What this can and can’t do</b>
+  <ul style="margin:6px 0 0;padding-left:18px">
+    <li>Search is rule-based: synonyms, typo tolerance, object names, time offsets and clock times. It is not an AI language model, so unusual phrasing may not be understood.</li>
+    <li>The detector finds objects (person, car, bus, truck, bag…). Falls, running, collisions, unattended objects, entering/leaving and people staying in place are <b>possible events</b> inferred from how boxes move between sampled frames. They can be wrong and are shown as candidates for human review.</li>
+    <li>“Suspicious”, fights, theft, weapons and faces are not detected.</li>
+    <li>Clock-time search needs the recording start time. It is read from the file when possible, otherwise estimated, and you can correct it.</li>
+    <li>Browsers play MP4 (H.264) reliably. AVI and some MOV/HEVC files may not play; the page will show a conversion command.</li>
+    <li>Use only footage you have permission to analyse.</li>
+  </ul>
+</section>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.min.js"></script>
 <script>
-const $=id=>document.getElementById(id);
-const fmt=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(Math.floor(s%60)).padStart(2,'0');
+/* BEGIN LOGIC */
 const COCO=["person","bicycle","car","motorcycle","airplane","bus","train","truck","boat","traffic light","fire hydrant","stop sign","parking meter","bench","bird","cat","dog","horse","sheep","cow","elephant","bear","zebra","giraffe","backpack","umbrella","handbag","tie","suitcase","frisbee","skis","snowboard","sports ball","kite","baseball bat","baseball glove","skateboard","surfboard","tennis racket","bottle","wine glass","cup","fork","knife","spoon","bowl","banana","apple","sandwich","orange","broccoli","carrot","hot dog","pizza","donut","cake","chair","couch","potted plant","bed","dining table","toilet","tv","laptop","mouse","remote","keyboard","cell phone","microwave","oven","toaster","sink","refrigerator","book","clock","vase","scissors","teddy bear","hair drier","toothbrush"];
-let session=null,url=null,events=[],dur=0,fname='';
+const VEH=['car','bus','truck','motorcycle','bicycle'],BAGS=['backpack','handbag','suitcase'],RUN_BH=1.8;
+const cen=b=>[(b[0]+b[2])/2,(b[1]+b[3])/2],bw=b=>b[2]-b[0],bh=b=>b[3]-b[1];
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 
-/* ---------- YOLO post-processing (pure functions) ---------- */
 function iou(a,b){const x1=Math.max(a[0],b[0]),y1=Math.max(a[1],b[1]),x2=Math.min(a[0]+a[2],b[0]+b[2]),y2=Math.min(a[1]+a[3],b[1]+b[3]);
   const i=Math.max(0,x2-x1)*Math.max(0,y2-y1);return i/(a[2]*a[3]+b[2]*b[3]-i+1e-9)}
 function decode(out,dims,conf,s,px,py,W,H){const N=dims[2],C=dims[1]-4,boxes=[],scores=[],cls=[];
@@ -72,7 +93,190 @@ function decode(out,dims,conf,s,px,py,W,H){const N=dims[2],C=dims[1]-4,boxes=[],
   for(const i of idx){let ok=true;for(const j of keep)if(cls[i]===cls[j]&&iou(boxes[i],boxes[j])>.45){ok=false;break}if(ok)keep.push(i)}
   return keep.map(i=>{const[x,y,w,h]=boxes[i];return{label:COCO[cls[i]],conf:scores[i],box:[Math.max(0,x),Math.max(0,y),Math.min(W,x+w),Math.min(H,y+h)]}})}
 
-/* ---------- model loading ---------- */
+/* ---- tracking: link same-class boxes across sampled frames ---- */
+function buildTracks(frames,step){
+  const maxGap=step*3.2,tracks=[],active=[];let nid=1;
+  for(const fr of frames){
+    const cands=[];
+    active.forEach((tr,ti)=>{const dt=fr.t-tr.last.t;if(dt>maxGap)return;
+      const[px,py]=cen(tr.last.box),size=Math.max(bw(tr.last.box),bh(tr.last.box),1),n=tr.pts.length;
+      let vx=0,vy=0,hasV=false;
+      if(n>=2&&tr.last.t-tr.pts[n-2].t<=maxGap){const q=tr.pts[n-2],[qx,qy]=cen(q.box),d0=tr.last.t-q.t;vx=(px-qx)/d0;vy=(py-qy)/d0;hasV=true}
+      const ex=px+vx*dt,ey=py+vy*dt,lim=hasV?1.2+.5*dt:Math.min(6,.5+3.5*dt); // predicted position; new tracks allow running speed
+      fr.dets.forEach((d,di)=>{if(d.label!==tr.label)return;
+        const[cx,cy]=cen(d.box),err=Math.hypot(cx-ex,cy-ey)/size;if(err<lim)cands.push([err/lim,ti,di])})});
+    cands.sort((a,b)=>a[0]-b[0]);
+    const usedT=new Set(),usedD=new Set();
+    for(const[,ti,di]of cands){if(usedT.has(ti)||usedD.has(di))continue;usedT.add(ti);usedD.add(di);
+      const d=fr.dets[di],tr=active[ti],pt={t:fr.t,box:d.box,conf:d.conf};tr.pts.push(pt);tr.last=pt}
+    fr.dets.forEach((d,di)=>{if(usedD.has(di))return;const pt={t:fr.t,box:d.box,conf:d.conf};
+      const tr={id:nid++,label:d.label,pts:[pt],last:pt};tracks.push(tr);active.push(tr)});
+    for(let i=active.length-1;i>=0;i--)if(fr.t-active[i].last.t>maxGap)active.splice(i,1)}
+  return tracks}
+
+function stationaryWindows(k,f){const w=[];let i=0;
+  while(i<k.pts.length){const[x0,y0]=cen(k.pts[i].box),size=Math.max(bw(k.pts[i].box),bh(k.pts[i].box),1);let j=i;
+    while(j+1<k.pts.length){const[x,y]=cen(k.pts[j+1].box);if(Math.hypot(x-x0,y-y0)<f*size)j++;else break}
+    if(j>i)w.push({i,j,t0:k.pts[i].t,t1:k.pts[j].t,x0,y0});i=j+1}
+  return w}
+
+const TYPE_LABEL={fall:'Possible fall',running:'Possible running',collision:'Possible collision',unattended:'Possible unattended object',enter:'Entered view',exit:'Left view',stationary:'Person staying in place'};
+const RELIABILITY={fall:'low',running:'low',collision:'low',unattended:'medium',enter:'medium',exit:'medium',stationary:'medium'};
+const TYPE_QUERY={fall:'show falls',running:'show people running',collision:'show collisions',unattended:'show unattended bags',enter:'show people entering',exit:'show people leaving',stationary:'show people standing still'};
+
+/* ---- event heuristics: all are "possible", inferred from box shape / movement ---- */
+function detectIncidents(frames,tracks,o){
+  const step=o.step,W=o.W,H=o.H,dwell=o.dwell||10,out=[];
+  const firstT=frames.length?frames[0].t:0,lastT=frames.length?frames[frames.length-1].t:0;
+  const add=(type,t,t2,objects,conf,desc,tid)=>{
+    const prev=out.find(e=>e.type===type&&e.tid===tid&&t<=e.t2+step*2);
+    if(prev){prev.t2=Math.max(prev.t2,t2);prev.conf=Math.max(prev.conf,conf);return}
+    out.push({type,t,t2,objects,conf,desc,tid,rel:RELIABILITY[type]})};
+  const people=tracks.filter(k=>k.label==='person');
+  // running: centroid speed in body-heights per second, sustained over 2 consecutive gaps
+  for(const k of people){let streak=0,start=0,maxv=0;
+    for(let i=1;i<k.pts.length;i++){const a=k.pts[i-1],b=k.pts[i],dt=b.t-a.t;
+      if(dt<=0||dt>step*2.2){streak=0;maxv=0;continue}
+      const h=(bh(a.box)+bh(b.box))/2,[ax,ay]=cen(a.box),[bx,by]=cen(b.box),v=Math.hypot(bx-ax,by-ay)/Math.max(h,1)/dt;
+      if(v>=RUN_BH){if(streak===0)start=a.t;streak++;maxv=Math.max(maxv,v);
+        if(streak>=2)add('running',start,b.t,['person'],b.conf,`Possible running: person moving about ${maxv.toFixed(1)} body-heights per second`,k.id)}
+      else{streak=0;maxv=0}}}
+  // fall: upright box becomes wide and shorter, and stays that way
+  for(const k of people){for(let i=1;i<k.pts.length;i++){const a=k.pts[i-1],b=k.pts[i];if(b.t-a.t>step*2.2)continue;
+      const ar=bw(a.box)/bh(a.box),br=bw(b.box)/bh(b.box),drop=1-bh(b.box)/bh(a.box),ay=cen(a.box)[1],by=cen(b.box)[1];
+      if(ar<.8&&br>1&&drop>.25&&by>=ay-bh(a.box)*.1){const n=k.pts[i+1],stays=!n||n.t-b.t>step*2.2||bw(n.box)/bh(n.box)>.8;
+        if(stays)add('fall',a.t,b.t,['person'],b.conf,'Possible fall: person’s box changed from upright to horizontal',k.id)}}}
+  // unattended object: bag stays put and no person is close during that time
+  for(const k of tracks){if(!BAGS.includes(k.label))continue;
+    for(const w of stationaryWindows(k,.6)){if(w.t1-w.t0<dwell)continue;let n=0,near=0;
+      for(const fr of frames){if(fr.t<w.t0||fr.t>w.t1)continue;n++;
+        if(fr.dets.some(d=>d.label==='person'&&Math.hypot(cen(d.box)[0]-w.x0,cen(d.box)[1]-w.y0)<1.2*bh(d.box)))near++}
+      if(n&&near/n<=.2)add('unattended',w.t0,w.t1,[k.label],k.pts[w.i].conf,`Possible unattended ${k.label}: stays in place for ${Math.round(w.t1-w.t0)} s with no person close by`,k.id)}}
+  // person staying in place (neutral; says nothing about intent)
+  for(const k of people){for(const w of stationaryWindows(k,.35)){if(w.t1-w.t0<dwell*2)continue;
+      add('stationary',w.t0,w.t1,['person'],k.pts[w.i].conf,`Person stays in about the same place for ${Math.round(w.t1-w.t0)} s`,k.id)}}
+  // entering / leaving the camera view (frame edges; named places like "building" are not known)
+  const edge=b=>b[0]<=W*.02?'left':b[2]>=W*.98?'right':b[1]<=H*.02?'top':b[3]>=H*.98?'bottom':null;
+  for(const k of tracks){if(k.label!=='person'&&!VEH.includes(k.label))continue;if(k.pts.length<2)continue;
+    const a=k.pts[0],z=k.pts[k.pts.length-1],ea=edge(a.box),ez=edge(z.box);
+    if(ea&&a.t>firstT)add('enter',a.t,a.t,[k.label],a.conf,`${cap(k.label)} entered the view from the ${ea} edge`,k.id);
+    if(ez&&z.t<lastT)add('exit',z.t,z.t,[k.label],z.conf,`${cap(k.label)} left the view at the ${ez} edge`,k.id)}
+  // collision: boxes of two tracks newly overlap while a vehicle is moving
+  const byT=new Map();tracks.forEach(k=>k.pts.forEach((p,idx)=>{const l=byT.get(p.t)||[];l.push({k,p,idx});byT.set(p.t,l)}));
+  const ov=(a,b)=>{const x1=Math.max(a[0],b[0]),y1=Math.max(a[1],b[1]),x2=Math.min(a[2],b[2]),y2=Math.min(a[3],b[3]);
+    return Math.max(0,x2-x1)*Math.max(0,y2-y1)/Math.max(1,Math.min(bw(a)*bh(a),bw(b)*bh(b)))};
+  const moved=e=>{if(e.idx===0)return 0;const q=e.k.pts[e.idx-1];if(e.p.t-q.t>step*2.2)return 0;
+    const[x,y]=cen(e.p.box),[qx,qy]=cen(q.box);return Math.hypot(x-qx,y-qy)/Math.max(bw(e.p.box),bh(e.p.box),1)};
+  const times=[...byT.keys()].sort((a,b)=>a-b);
+  for(let ti=0;ti<times.length;ti++){const list=byT.get(times[ti]);
+    for(let x=0;x<list.length;x++)for(let y=x+1;y<list.length;y++){const A=list[x],B=list[y],av=VEH.includes(A.k.label),bv=VEH.includes(B.k.label);
+      const okL=l=>l==='person'||VEH.includes(l);
+      if(!(av||bv)||!okL(A.k.label)||!okL(B.k.label))continue;if(ov(A.p.box,B.p.box)<.3)continue;
+      const prevT=ti>0?times[ti-1]:null;let was=false;
+      if(prevT!=null&&times[ti]-prevT<=step*2.2){const pa=A.k.pts[A.idx-1],pb=B.k.pts[B.idx-1];was=!!(pa&&pb&&pa.t===prevT&&pb.t===prevT&&ov(pa.box,pb.box)>=.1)}
+      if(was)continue;if(Math.max(av?moved(A):0,bv?moved(B):0)<.25)continue;
+      add('collision',times[ti],times[ti],[A.k.label,B.k.label],Math.min(A.p.conf,B.p.conf),`Possible collision: ${A.k.label} and ${B.k.label} boxes started overlapping (often a false alarm in busy or angled views)`,A.k.id+'-'+B.k.id)}}
+  return out.sort((a,b)=>a.t-b.t)}
+
+/* ---- query understanding: synonyms + typo tolerance + object/time/clock parsing (rule-based) ---- */
+const GROUPS={person:["person","people","persons","man","men","woman","women","human","humans","pedestrian","pedestrians","someone","guy","guys","crowd"],vehicle:["vehicle","vehicles","traffic"],car:["car","cars"],bus:["bus","buses"],truck:["truck","trucks","lorry"],motorcycle:["motorcycle","motorcycles","motorbike","motorbikes"],bicycle:["bicycle","bicycles","bike","bikes","cyclist","cyclists"],bag:["bag","bags","baggage"],backpack:["backpack","backpacks","rucksack"],handbag:["handbag","handbags","purse"],suitcase:["suitcase","luggage"],dog:["dog","dogs"],cat:["cat","cats"],bench:["bench"],umbrella:["umbrella"],"cell phone":["phone","cellphone"],bottle:["bottle","bottles"],chair:["chair","chairs"],laptop:["laptop"]};
+const EXPAND={vehicle:["car","bus","truck","motorcycle","bicycle"],bag:["backpack","handbag","suitcase"]};
+const INTENTS={
+  fall:['fall','falls','falling','fell','fallen','collapse','collapsed','tripped','on the ground','on the floor','lying down'],
+  running:['run','runs','running','ran','sprint','sprinting','rushing','hurrying','jogging'],
+  collision:['collision','collisions','collide','collided','crash','crashed','accident','hit','bump','bumped','impact'],
+  unattended:['unattended','abandoned','left behind','left alone','forgotten','unclaimed'],
+  enter:['enter','enters','entering','entered','arrive','arrives','arriving','arrived','appear','appears','appearing','walking in','coming in'],
+  exit:['exit','exits','exiting','exited','leave','leaves','leaving','walking out','going out','depart','departing'],
+  stationary:['standing','stationary','loitering','lingering','waiting','standing still','staying','idle','stays']};
+const UNSUP=['suspicious','fight','fighting','theft','steal','stealing','weapon','gun','violence','attack','assault','face','faces'];
+const PLACES=['parking','building','gate','door','entrance','lobby','room','zone','area','lane','road','street','corridor','hallway'];
+
+function lev1(a,b){if(a===b)return true;if(Math.abs(a.length-b.length)>1)return false;
+  let i=0,j=0,e=0;while(i<a.length&&j<b.length){if(a[i]===b[j]){i++;j++;continue}if(++e>1)return false;
+    if(a.length>b.length)i++;else if(a.length<b.length)j++;else{i++;j++}}
+  return e+(a.length-i)+(b.length-j)<=1}
+function hasWord(s,toks,w){if(w.includes(' '))return new RegExp('\\b'+w+'\\b').test(s);
+  if(toks.includes(w))return true;if(w.length<5)return false;return toks.some(t=>t.length>=5&&lev1(t,w))}
+
+function parseClock(s){
+  const T='(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm)?\\b',
+  tod=(h,m,ap)=>{h=+h;m=+(m||0);if(h>24||m>59)return null;if(ap==='pm'&&h<12)h+=12;if(ap==='am'&&h===12)h=0;return h*3600+m*60};
+  let m=s.match(new RegExp('between\\s+'+T+'\\s*(?:and|to|-)\\s*'+T));
+  if(m&&(m[2]||m[3]||m[5]||m[6])){let a=tod(m[1],m[2],m[3]||m[6]),b=tod(m[4],m[5],m[6]||m[3]);
+    if(a!=null&&b!=null){if(!m[3]&&m[6]==='pm'&&a>b&&+m[1]<=12)a-=43200;return{kind:'between',a,b}}}
+  for(const kind of['after','before','at']){m=s.match(new RegExp('\\b'+kind+'\\s+'+T));
+    if(m&&(m[2]||m[3])){const a=tod(m[1],m[2],m[3]);if(a!=null)return{kind,a}}}
+  return null}
+function clockToOffsets(c,startTod,dur){const D=86400;
+  if(c.kind==='between'||c.kind==='at'){let ra=c.a-startTod,rb=(c.kind==='at'?c.a+60:c.b)-startTod;if(rb<ra)rb+=D;
+    const hit=(x,y)=>y>=0&&x<=dur;if(!hit(ra,rb)&&hit(ra+D,rb+D)){ra+=D;rb+=D}return{from:ra,to:rb}}
+  const raw=c.a-startTod,o=raw<0?raw+D:raw;
+  if(c.kind==='after')return{from:raw<0&&o>dur?raw:o,to:null};
+  return{from:null,to:raw<0&&o>dur?-1:o}}
+
+function parse(q,ctx){ctx=ctx||{};const s=q.toLowerCase().replace(/[^a-z0-9:\s-]/g,' ').replace(/\s+/g,' ').trim(),toks=s.split(' '),
+    r={groups:[],all:false,intents:[],from:null,to:null,clock:null,unsup:[],places:false,noStart:false};
+  for(const[k,ws]of Object.entries(GROUPS))if(ws.some(w=>hasWord(s,toks,w)))r.groups.push(EXPAND[k]||[k]);
+  r.all=/\b(near|with|next to|beside)\b/.test(s)&&r.groups.length>1;
+  for(const[k,ws]of Object.entries(INTENTS))if(ws.some(w=>hasWord(s,toks,w)))r.intents.push(k);
+  const c=parseClock(s);
+  if(c){r.clock=c;if(ctx.startTod==null)r.noStart=true;else{const o=clockToOffsets(c,ctx.startTod,ctx.dur||0);r.from=o.from;r.to=o.to}}
+  else{let m=s.match(/between\s+(\d+(?:\.\d+)?)\s*(?:s|sec|seconds?)?\s*(?:and|to|-)\s*(\d+(?:\.\d+)?)/);
+    if(m){r.from=+m[1];r.to=+m[2]}else{const u=z=>z.startsWith('min')?60:1,
+      a=s.match(/after\s+(\d+(?:\.\d+)?)\s*(s|sec|seconds?|min|minutes?)\b/),b=s.match(/before\s+(\d+(?:\.\d+)?)\s*(s|sec|seconds?|min|minutes?)\b/);
+      if(a)r.from=+a[1]*u(a[2]);if(b)r.to=+b[1]*u(b[2])}}
+  for(const w of UNSUP)if(hasWord(s,toks,w))r.unsup.push('“'+w+'”');
+  r.places=PLACES.some(w=>toks.includes(w));
+  return r}
+
+const fmtT=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(Math.floor(s%60)).padStart(2,'0');
+/* data: {events,incidents,minc,objf}; ctx: {startTod,dur,step} -> {items,notes,p} */
+function searchData(q,ctx,data){
+  const p=parse(q,ctx),notes=[];let items=[];
+  const hasTime=p.from!=null||p.to!=null,recognised=p.groups.length||p.intents.length||hasTime||p.clock;
+  if(p.noStart)notes.push('Set “Recording started at” so I can turn clock times into positions in the video.');
+  if(q.trim()&&!recognised){
+    notes.push('I couldn’t map that to something I can search. Try object names (person, car, bus, truck, bag…), events (falls, running, unattended bag, entering), or a time such as “between 20 and 60 seconds” or “after 5 PM”.'+(p.unsup.length?' Not supported: '+p.unsup.join(', ')+' (this tool detects objects and simple movement, not intent).':''));
+    return{items,notes,p}}
+  if(p.unsup.length)notes.push('Not supported: '+p.unsup.join(', ')+'. These can’t be judged from object boxes. Showing the supported parts of your query only.');
+  if(p.places&&(p.intents.length||p.groups.length))notes.push('Named places (parking area, building, door…) aren’t known to the app, so the whole camera view was searched.');
+  const gs=p.groups.slice();if(data.objf)gs.push([data.objf]);
+  const objOK=objs=>!gs.length||((p.all||data.objf)?gs.every(g=>g.some(o=>objs.includes(o))):gs.some(g=>g.some(o=>objs.includes(o))));
+  const timeOK=e=>(p.from==null||e.t2>=p.from)&&(p.to==null||e.t<=p.to);
+  if(p.intents.length){
+    items=data.incidents.filter(e=>p.intents.includes(e.type)&&timeOK(e)&&objOK(e.objects)).map(e=>({kind:'incident',...e}));
+    if((p.intents.includes('fall')||p.intents.includes('running')||p.intents.includes('collision'))&&ctx.step>1)notes.push(`Frames were checked every ${ctx.step} s. Falls, running and collisions are found more reliably with 1 s steps.`);
+    if(!items.length)notes.push('None found. Event checks use box shape and movement between sampled frames, so they can miss things. Browse object detections to double-check.')}
+  else{
+    items=data.events.filter(e=>timeOK({t:e.t,t2:e.t})&&e.conf>=data.minc&&objOK(e.objects)).map(e=>({kind:'detection',t2:e.t,...e}));
+    items.sort((a,b)=>b.conf-a.conf||a.t-b.t);
+    if(!items.length)notes.push('No matching detections found.')}
+  return{items,notes,p}}
+/* END LOGIC */
+
+/* ================= UI ================= */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+let session=null,url=null,events=[],incidents=[],thumbs=[],dur=0,fname='',curFile=null,vw=0,vh=0,usedStep=2;
+
+const toLocalInput=ms=>{const d=new Date(ms);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`};
+const startMs=()=>{const v=$('start').value;if(!v)return null;const ms=new Date(v).getTime();return isNaN(ms)?null:ms};
+const startTod=()=>{const ms=startMs();if(ms==null)return null;const d=new Date(ms);return d.getHours()*3600+d.getMinutes()*60+d.getSeconds()};
+const clockOf=t=>{const ms=startMs();if(ms==null)return null;const d=new Date(ms+t*1000),d0=new Date(ms);
+  return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())+(d.getDate()!==d0.getDate()?' (next day)':'')};
+
+async function readCreation(file){
+  try{const parts=[file.slice(0,Math.min(file.size,2<<20))];if(file.size>4<<20)parts.push(file.slice(file.size-(2<<20)));
+    for(const part of parts){const b=new Uint8Array(await part.arrayBuffer());
+      for(let i=4;i<b.length-24;i++)if(b[i]===0x6d&&b[i+1]===0x76&&b[i+2]===0x68&&b[i+3]===0x64){
+        const dv=new DataView(b.buffer,b.byteOffset+i+4),ver=dv.getUint8(0),
+          secs=ver===1?dv.getUint32(4)*4294967296+dv.getUint32(8):dv.getUint32(4),unix=secs-2082844800;
+        return(unix>946684800&&unix*1000<Date.now()+864e5)?unix*1000:null}}}catch(e){}
+  return null}
+
+/* ---- model ---- */
 ort.env.wasm.wasmPaths='https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/';ort.env.wasm.numThreads=1;
 async function loadModel(buf){try{session=await ort.InferenceSession.create(buf,{executionProviders:['wasm']});
   $('model').textContent='Model: YOLOv8n loaded (runs in your browser).';$('modelpick').classList.add('hide');ready()}
@@ -81,79 +285,91 @@ async function loadModel(buf){try{session=await ort.InferenceSession.create(buf,
   catch(e){$('model').textContent='Model: not loaded yet.';$('modelpick').classList.remove('hide')}})();
 $('mfile').onchange=async e=>{if(e.target.files[0])await loadModel(await e.target.files[0].arrayBuffer())};
 
-/* ---------- video ---------- */
+/* ---- video + conversion help ---- */
 const v=document.createElement('video');v.muted=true;v.playsInline=true;v.preload='auto';
 function ready(){$('go').disabled=!(session&&dur)}
-$('file').onchange=e=>{const f=e.target.files[0];if(!f)return;if(url)URL.revokeObjectURL(url);url=URL.createObjectURL(f);fname=f.name;v.src=url;events=[];dur=0;ready();
-  $('info').textContent=`${f.name} · ${(f.size/1048576).toFixed(1)} MB · status: loading…`;
-  v.onloadedmetadata=()=>{dur=v.duration;$('info').textContent=`${f.name} · ${(f.size/1048576).toFixed(1)} MB · ${fmt(dur)} long · status: uploaded`+(session?'':' (load the model first)');ready()};
-  v.onerror=()=>{$('info').textContent='This browser can’t read that video. Try an H.264 MP4.'}};
-const seek=t=>new Promise(r=>{v.onseeked=()=>r();v.currentTime=Math.min(t,dur-.05)});
+function showConvert(file,reason){const n=file?file.name:'video',base=n.replace(/\.[^.]+$/,'');
+  const cmd=`ffmpeg -i "${n}" -c:v libx264 -pix_fmt yuv420p -c:a aac "${base}.mp4"`;
+  $('convert').classList.remove('hide');
+  $('convert').innerHTML=`<div class="note warn"><b>${esc(reason)}</b><br>Convert it to an H.264 MP4, then choose the new file. With ffmpeg installed, run:<code id="cmd">${esc(cmd)}</code>
+   <button class="ghost" id="copycmd" type="button">Copy command</button>
+   <div class="mute" style="margin-top:6px">No ffmpeg? HandBrake or VLC (Media → Convert/Save) can also write H.264 MP4. Online converters upload your footage to a third party, so avoid them for sensitive recordings.</div></div>`;
+  $('copycmd').onclick=()=>{try{navigator.clipboard.writeText(cmd);$('copycmd').textContent='Copied'}catch(e){}}}
+function hideConvert(){$('convert').classList.add('hide');$('convert').innerHTML=''}
 
+$('file').onchange=e=>{const f=e.target.files[0];if(!f)return;if(url)URL.revokeObjectURL(url);url=URL.createObjectURL(f);curFile=f;fname=f.name;v.src=url;
+  events=[];incidents=[];thumbs=[];dur=0;ready();hideConvert();$('tools').classList.add('hide');$('player').classList.add('hide');
+  $('info').textContent=`${f.name} · ${(f.size/1048576).toFixed(1)} MB · status: loading…`;
+  if(/\.(avi|mkv|wmv|flv)$/i.test(f.name))showConvert(f,'AVI/MKV/WMV files usually can’t be played by browsers. I’ll still try to read it.');
+  v.onloadedmetadata=async()=>{dur=v.duration;vw=v.videoWidth;vh=v.videoHeight;
+    $('info').textContent=`${f.name} · ${(f.size/1048576).toFixed(1)} MB · ${fmtT(dur)} long · status: uploaded`+(session?'':' (load the model first)');
+    const c=await readCreation(f);
+    if(c){$('start').value=toLocalInput(c);$('startsrc').textContent='Read from the video’s metadata (stored in UTC, shown in your time zone). Correct it if your recorder uses another clock.'}
+    else{$('start').value=toLocalInput((f.lastModified||Date.now())-dur*1000);$('startsrc').textContent='Estimated from the file date minus the video length. Please correct it for clock-time searches.'}
+    ready()};
+  v.onerror=()=>{dur=0;ready();$('info').textContent='This browser can’t read that video.';showConvert(f,'This browser can’t play this video format or codec.')}};
+const seek=t=>new Promise((res,rej)=>{const tm=setTimeout(()=>{v.readyState>=2?res():rej(new Error('Timed out reading a video frame'))},4000);
+  v.onseeked=()=>{clearTimeout(tm);res()};v.onerror=()=>{clearTimeout(tm);rej(new Error('Video decode error'))};
+  v.currentTime=Math.min(t,Math.max(0,dur-.05))});
+
+/* ---- analysis ---- */
 $('go').onclick=async()=>{
-  const step=+$('step').value,conf=+$('conf').value/100;$('go').disabled=true;events=[];$('tools').classList.remove('hide');$('results').innerHTML='';
-  const vw=v.videoWidth,vh=v.videoHeight,s=Math.min(640/vw,640/vh),nw=Math.round(vw*s),nh=Math.round(vh*s),px=(640-nw)>>1,py=(640-nh)>>1;
+  const step=+$('step').value,conf=+$('conf').value/100,dwell=+$('dwell').value||10;usedStep=step;
+  $('go').disabled=true;events=[];incidents=[];thumbs=[];$('tools').classList.remove('hide');$('results').innerHTML='';$('msg').innerHTML='';$('evchips').innerHTML='';
+  const s=Math.min(640/vw,640/vh),nw=Math.round(vw*s),nh=Math.round(vh*s),px=(640-nw)>>1,py=(640-nh)>>1;
   const c=document.createElement('canvas');c.width=c.height=640;const x=c.getContext('2d',{willReadFrequently:true});
   const tw=480,th=Math.round(480*vh/vw),tc=document.createElement('canvas');tc.width=tw;tc.height=th;const tx=tc.getContext('2d');
-  const n=Math.floor(dur/step);
+  const n=Math.floor(dur/step),frames=[];
   try{for(let i=0;i<=n;i++){const t=i*step;await seek(t);
     x.fillStyle='#727272';x.fillRect(0,0,640,640);x.drawImage(v,px,py,nw,nh);
     const d=x.getImageData(0,0,640,640).data,f=new Float32Array(3*640*640),P=640*640;
     for(let p=0;p<P;p++){f[p]=d[p*4]/255;f[P+p]=d[p*4+1]/255;f[2*P+p]=d[p*4+2]/255}
     const res=await session.run({[session.inputNames[0]]:new ort.Tensor('float32',f,[1,3,640,640])});
-    const o=res[session.outputNames[0]],dets=decode(o.data,o.dims,conf,s,px,py,vw,vh);
+    const o=res[session.outputNames[0]],dets=decode(o.data,o.dims,conf,s,px,py,vw,vh);frames.push({t,dets});
     if(dets.length){tx.drawImage(v,0,0,tw,th);const k=tw/vw;tx.lineWidth=2;tx.font='13px sans-serif';
       for(const dt of dets){const[a,b,e2,f2]=dt.box;tx.strokeStyle='#ffc800';tx.strokeRect(a*k,b*k,(e2-a)*k,(f2-b)*k);tx.fillStyle='#ffc800';tx.fillText(`${dt.label} ${dt.conf.toFixed(2)}`,a*k+2,Math.max(12,b*k-4))}
-      const cnt={};dets.forEach(z=>cnt[z.label]=(cnt[z.label]||0)+1);
-      events.push({t,objects:Object.keys(cnt).sort(),conf:Math.max(...dets.map(z=>z.conf)),thumb:tc.toDataURL('image/jpeg',.75),
+      const cnt={};dets.forEach(z=>cnt[z.label]=(cnt[z.label]||0)+1);const thumb=tc.toDataURL('image/jpeg',.75);thumbs.push({t,thumb});
+      events.push({t,objects:Object.keys(cnt).sort(),conf:Math.max(...dets.map(z=>z.conf)),thumb,
         desc:'Detected: '+Object.entries(cnt).sort((a,b)=>b[1]-a[1]).map(([l,m])=>m+' '+l).join(', ')})}
     $('prog').style.width=(i/n*100)+'%';$('info').textContent=`${fname} · status: processing ${i+1}/${n+1} frames`}
-    $('info').textContent=`${fname} · ${fmt(dur)} · status: completed (${n+1} frames checked, ${events.length} frames with detections)`;
-  }catch(e){$('info').textContent='status: failed — '+e.message}
+    incidents=detectIncidents(frames,buildTracks(frames,step),{step,W:vw,H:vh,dwell});
+    $('info').textContent=`${fname} · ${fmtT(dur)} · status: completed (${n+1} frames checked, ${events.length} with detections, ${incidents.length} possible events)`;
+  }catch(e){$('info').textContent='status: failed — '+e.message;if(/decode|Timed out/i.test(e.message))showConvert(curFile,'The video couldn’t be read frame by frame.')}
   ready();stats();search('')};
 
 function stats(){const cnt={};events.forEach(e=>e.objects.forEach(o=>cnt[o]=(cnt[o]||0)+1));
-  $('stats').innerHTML=`<div><b>${events.length}</b>indexed moments</div><div><b>${fmt(dur)}</b>video length</div>`+Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([o,m])=>`<div><b>${m}</b>${o}</div>`).join('');
-  $('objf').innerHTML='<option value="">Any</option>'+Object.keys(cnt).sort().map(o=>`<option>${o}</option>`).join('')}
+  $('stats').innerHTML=`<div><b>${events.length}</b>indexed moments</div><div><b>${incidents.length}</b>possible events</div><div><b>${fmtT(dur)}</b>video length</div>`+Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([o,m])=>`<div><b>${m}</b>${esc(o)}</div>`).join('');
+  $('objf').innerHTML='<option value="">Any</option>'+Object.keys(cnt).sort().map(o=>`<option>${esc(o)}</option>`).join('');
+  const ic={};incidents.forEach(i=>ic[i.type]=(ic[i.type]||0)+1);
+  $('evchips').innerHTML=Object.keys(TYPE_LABEL).filter(k=>ic[k]).map(k=>`<button class="ghost" data-q="${TYPE_QUERY[k]}">${TYPE_LABEL[k]} (${ic[k]})</button>`).join('')}
+$('evchips').onclick=e=>{const b=e.target.closest('[data-q]');if(b){$('q').value=b.dataset.q;search()}};
 
-/* ---------- search (keyword + object + time; not semantic) ---------- */
-const GROUPS={person:["person","people","persons","man","men","woman","women","human","humans","pedestrian","pedestrians","someone"],vehicle:["vehicle","vehicles","traffic"],car:["car","cars"],bus:["bus","buses"],truck:["truck","trucks"],motorcycle:["motorcycle","motorcycles","motorbike","motorbikes"],bicycle:["bicycle","bicycles","bike","bikes","cyclist","cyclists"],bag:["bag","bags"],backpack:["backpack","backpacks"],handbag:["handbag","handbags"],suitcase:["suitcase","luggage"],dog:["dog","dogs"],cat:["cat","cats"],bench:["bench"],umbrella:["umbrella"],"cell phone":["phone","cellphone"],bottle:["bottle","bottles"],chair:["chair","chairs"],laptop:["laptop"]};
-const EXPAND={vehicle:["car","bus","truck","motorcycle","bicycle"],bag:["backpack","handbag","suitcase"]};
-const UNSUP=["fall","falling","fell","collision","collide","crash","accident","suspicious","fight","unattended","abandoned","running","theft","steal","weapon","entering","entered"];
-function parse(q){const s=q.toLowerCase(),r={groups:[],all:false,from:null,to:null,unsup:[]};
-  for(const[k,ws]of Object.entries(GROUPS))if(ws.some(w=>new RegExp('\\b'+w+'\\b').test(s)))r.groups.push(EXPAND[k]||[k]);
-  r.all=/\b(near|with|and|next to|beside)\b/.test(s)&&r.groups.length>1;
-  let m=s.match(/between\s+(\d+(?:\.\d+)?)\s*(?:s|sec|seconds?)?\s*(?:and|to|-)\s*(\d+(?:\.\d+)?)/);
-  if(m){r.from=+m[1];r.to=+m[2]}else{const u=z=>z.startsWith('min')?60:1,
-    a=s.match(/after\s+(\d+(?:\.\d+)?)\s*(s|sec|seconds?|min|minutes?)/),b=s.match(/before\s+(\d+(?:\.\d+)?)\s*(s|sec|seconds?|min|minutes?)/);
-    if(a)r.from=+a[1]*u(a[2]);if(b)r.to=+b[1]*u(b[2])}
-  if(/\b\d{1,2}(:\d\d)?\s*(am|pm)\b/.test(s))r.unsup.push('clock times (the video only has offsets in seconds)');
-  for(const w of UNSUP)if(new RegExp('\\b'+w+'\\b').test(s))r.unsup.push('“'+w+'” detection');
-  return r}
-function search(q=$('q').value){if(typeof q!=='string')q=$('q').value;const p=parse(q),of=$('objf').value,mc=+$('minc').value/100,notes=[];
-  if(q.trim()&&!p.groups.length&&p.from==null&&p.to==null){$('results').innerHTML='';
-    $('msg').innerHTML='<div class="note">I couldn’t map that to something I can search. Try object names (person, car, bus, truck, bag…) and/or a time range such as “between 20 and 60 seconds”.'+(p.unsup.length?' Not supported: '+p.unsup.join('; ')+'.':'')+'</div>';return}
-  if(p.unsup.length)notes.push('Partly supported. Not understood: '+p.unsup.join('; ')+'. Showing object/time matches only.');
-  const gs=p.groups.slice();if(of)gs.push([of]);
-  let r=events.filter(e=>(p.from==null||e.t>=p.from)&&(p.to==null||e.t<=p.to)&&e.conf>=mc&&(!gs.length||(p.all||of?gs.every(g=>g.some(o=>e.objects.includes(o))):gs.some(g=>g.some(o=>e.objects.includes(o))))));
-  r.sort((a,b)=>b.conf-a.conf||a.t-b.t);
-  if(!r.length&&!notes.length)notes.push('No matching detections found.');
-  $('msg').innerHTML=(events.length?`<div class="mute">Keyword/object/time filtering (not semantic search). ${r.length} result${r.length==1?'':'s'}; candidates for human review.</div>`:'')+notes.map(n=>`<div class="note">${n}</div>`).join('');
-  $('results').innerHTML=r.slice(0,60).map(e=>`<article class="card"><img src="${e.thumb}" alt="Frame at ${fmt(e.t)}: ${e.desc}"><div>
-   <span class="t">${fmt(e.t)} <span class="mute">· ${Math.round(e.conf*100)}% conf.</span></span><span class="mute">${fname}</span><span>${e.desc}</span>
-   <span>${e.objects.map(o=>`<span class="tag">${o}</span>`).join('')}</span><button class="btn" data-t="${e.t}">Play at ${fmt(Math.max(0,e.t-3))}</button></div></article>`).join('')}
+/* ---- search + render ---- */
+function card(it){const clk=clockOf(it.t),when=`${fmtT(it.t)}${it.kind==='incident'&&it.t2>it.t?'–'+fmtT(it.t2):''}`,clkTxt=clk?` · ${clk}`:'';
+  const tb=it.kind==='incident'?(thumbs.slice().sort((a,b)=>Math.abs(a.t-it.t)-Math.abs(b.t-it.t))[0]||{}).thumb:it.thumb;
+  const head=it.kind==='incident'?`<span><b>${TYPE_LABEL[it.type]}</b> <span class="badge">reliability: ${it.rel}</span></span>`:'';
+  return `<article class="card ${it.kind}"><img src="${tb||''}" alt="Frame near ${fmtT(it.t)}: ${esc(it.desc)}"><div>${head}
+   <span class="t">${when}${clkTxt}${it.kind==='detection'?` <span class="mute">· ${Math.round(it.conf*100)}% conf.</span>`:''}</span><span class="mute">${esc(fname)}</span><span>${esc(it.desc)}</span>
+   <span>${it.objects.map(o=>`<span class="tag">${esc(o)}</span>`).join('')}</span><button class="btn" data-t="${it.t}">Play at ${fmtT(Math.max(0,it.t-3))}</button></div></article>`}
+function search(q=$('q').value){if(typeof q!=='string')q=$('q').value;
+  const r=searchData(q,{startTod:startTod(),dur,step:usedStep},{events,incidents,minc:+$('minc').value/100,objf:$('objf').value});
+  const shown=r.items.slice(0,60);
+  $('msg').innerHTML=(events.length||incidents.length?`<div class="mute" style="margin-bottom:6px">Rule-based search (synonyms, typos, objects, events, times). ${r.items.length} result${r.items.length==1?'':'s'}${r.items.length>60?' (showing 60)':''}; candidates for human review.</div>`:'')+r.notes.map(n=>`<div class="note ${/Not supported|couldn’t map/.test(n)?'warn':''}">${esc(n)}</div>`).join('');
+  $('results').innerHTML=shown.map(card).join('')}
 $('form').onsubmit=e=>{e.preventDefault();search()};$('objf').onchange=()=>search();$('minc').onchange=()=>search();
-const SAMPLES=['Find people','Show all vehicle detections','Find a person near a vehicle','Show people between 20 and 60 seconds'];
+const SAMPLES=['Find people','Show all vehicle detections','Find a person near a vehicle','Show people between 20 and 60 seconds','Possible falls','People running','Unattended bags','Show activity after 5 PM'];
 $('samples').innerHTML=SAMPLES.map(s=>`<button class="ghost">${s}</button>`).join('');
 $('samples').onclick=e=>{if(e.target.tagName==='BUTTON'){$('q').value=e.target.textContent;search()}};
 
-/* ---------- player ---------- */
+/* ---- player ---- */
 $('results').onclick=e=>{const b=e.target.closest('button[data-t]');if(b)play(+b.dataset.t)};
-function play(t){$('player').classList.remove('hide');$('ptitle').textContent=`${fname} · detection at ${fmt(t)}`;
+function play(t){$('player').classList.remove('hide');$('ptitle').textContent=`${fname} · at ${fmtT(t)}${clockOf(t)?' ('+clockOf(t)+')':''}`;
   const pv=$('vid');if(pv.dataset.src!==url){pv.src=url;pv.dataset.src=url}
-  const go=()=>{pv.currentTime=Math.max(0,t-3);pv.play()};pv.readyState>0?go():pv.onloadedmetadata=go;
-  $('tl').innerHTML=events.map(e=>`<button style="left:${e.t/dur*100}%" data-j="${e.t}" title="${fmt(e.t)}: ${e.objects.join(', ')}" aria-label="Jump to ${fmt(e.t)}"></button>`).join('');
+  pv.onerror=()=>showConvert(curFile,'This browser can’t play this video format or codec.');
+  const go=()=>{pv.currentTime=Math.max(0,t-3);pv.play().catch(()=>{})};pv.readyState>0?go():pv.onloadedmetadata=go;
+  $('tl').innerHTML=events.map(e=>`<button style="left:${e.t/dur*100}%" data-j="${e.t}" title="${fmtT(e.t)}: ${esc(e.objects.join(', '))}" aria-label="Jump to ${fmtT(e.t)}"></button>`).join('')+
+    incidents.map(e=>`<button class="inc" style="left:${e.t/dur*100}%" data-j="${e.t}" title="${fmtT(e.t)}: ${TYPE_LABEL[e.type]}" aria-label="Jump to ${TYPE_LABEL[e.type]} at ${fmtT(e.t)}"></button>`).join('');
   $('player').scrollIntoView({behavior:'smooth'})}
-$('tl').onclick=e=>{const b=e.target.closest('[data-j]');if(b){$('vid').currentTime=+b.dataset.j;$('vid').play()}};
+$('tl').onclick=e=>{const b=e.target.closest('[data-j]');if(b){$('vid').currentTime=+b.dataset.j;$('vid').play().catch(()=>{})}};
 $('close').onclick=()=>{$('vid').pause();$('player').classList.add('hide')};
 </script></body></html>
