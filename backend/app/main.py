@@ -180,7 +180,7 @@ GROUPS = {
     "suitcase": ["suitcase", "luggage"], "dog": ["dog", "dogs"], "cat": ["cat", "cats"],
     "bench": ["bench"], "umbrella": ["umbrella"], "cell phone": ["phone", "cellphone"],
     "bottle": ["bottle", "bottles"], "chair": ["chair", "chairs"], "laptop": ["laptop"],
-    "traffic light": ["traffic light"], "truck ": [],
+    "traffic light": ["traffic light"],
 }
 EXPAND = {"vehicle": ["car", "bus", "truck", "motorcycle", "bicycle"], "bag": ["backpack", "handbag", "suitcase"]}
 UNSUPPORTED = ["fall", "falling", "fell", "collision", "collide", "crash", "accident", "suspicious", "fight",
